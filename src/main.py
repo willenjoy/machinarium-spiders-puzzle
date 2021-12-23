@@ -16,12 +16,19 @@ dots:
 # TODO: automatically detect terminal size if possible
 
 import imageio as iio
+import logging
 import numpy as np
+import pygame
 import time
 
 from collections import namedtuple
 from curses import curs_set, wrapper
 from typing import List, Tuple
+
+logging.basicConfig(level=logging.INFO, 
+                    format='[%(levelname)s] %(filename)s:%(lineno)s - %(message)s', 
+                    filemode='w', filename='log.txt')
+logger = logging.getLogger(__name__)
 
 Point = namedtuple('Point', ['x', 'y'])
 
@@ -38,7 +45,16 @@ PIXEL_MAP = np.array(
 SIZE = 80
 CENTER = Point(SIZE // 2, SIZE // 2)
 RADIUS = 10
+BULLET_SIZE = 4
 
+CONFIG = {
+    'sounds': {
+        'shoot': 'assets/sounds/shoot.wav',
+        'block_hit': 'assets/sounds/block_hit.wav',
+        'player_hit': 'assets/sounds/player_hit.wav',
+        'spider_hit': 'assets/sounds/spider_hit.wav'
+    }
+}
 
 def terminal_size(stdscr) -> Tuple[int, int]:
     """
@@ -68,6 +84,25 @@ def braillify(frame: np.array) -> str:
         braille += '\n'
     
     return braille
+
+
+class SoundManager:
+    def __init__(self, sound_config):
+        self.sounds = {}
+        for name, path in sound_config.items():
+            self.add(name, path)
+            logger.info(f'Added sound {name}:' + 
+                        f' length={self.sounds[name].get_length():.3f},' +
+                        f' volume={self.sounds[name].get_volume()}')
+
+    def add(self, name, path):
+        self.sounds[name] = pygame.mixer.Sound(path)
+
+    def play(self, name):
+        logger.info(f'Playing sound {self.sounds[name]}')
+        ch = self.sounds[name].play()
+        # while ch.get_busy():
+        #     pygame.time.delay(100)
 
 
 class Clock:
@@ -165,12 +200,16 @@ class Player(Drawable):
     def update(self, canvas: Canvas) -> None:
         self.draw(canvas)
 
+    def bullet_spawn_point(self, bullet_size) -> Point:
+        return self.x + self.sprite.width - bullet_size // 2, self.yc
+
 
 class Game:
-    def __init__(self, window, size) -> None:
+    def __init__(self, window, size, sound_manager) -> None:
         self.canvas = Canvas(window, SIZE, SIZE)
         self.player = Player(SIZE // 4, SIZE // 2)
         self.bullets = []
+        self.sound_manager = sound_manager
         self.is_running = True
 
     def process_input(self, key: int) -> None:
@@ -181,7 +220,11 @@ class Game:
         elif key == ord('s'):
             self.player.yc += 1
         elif key == ord(' '):
-            self.bullets.append(Bullet(self.player.xc, self.player.yc))
+            # TODO: refactor it as player's method (how to pass sound manager?)
+            bullet = Bullet(*self.player.bullet_spawn_point(BULLET_SIZE), 
+                            size=BULLET_SIZE)
+            self.bullets.append(bullet)
+            self.sound_manager.play('shoot')
         return True
 
     def update(self, delta: float) -> None:
@@ -193,11 +236,14 @@ class Game:
 
 
 def main(stdscr):
+    pygame.mixer.init()
+    sound_manager = SoundManager(CONFIG['sounds'])
+
     curs_set(0)
     stdscr.nodelay(1)
 
     clock = Clock()
-    game = Game(stdscr, (SIZE, SIZE))
+    game = Game(stdscr, (SIZE, SIZE), sound_manager)
 
     clock.start()
     while game.is_running:

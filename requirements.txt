@@ -1,0 +1,4 @@
+curses
+imageio
+numpy
+pygame

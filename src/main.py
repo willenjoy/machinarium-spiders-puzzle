@@ -115,9 +115,9 @@ class Sprite:
                     self.data[row, col] = 1
 
     def from_png(self, fname: str) -> None:
-        read_kwargs = {'pilmode': 'LA'}
+        read_kwargs = {'pilmode': 'L'}
         img = iio.imread(fname, **read_kwargs)
-        self.data = np.squeeze(img[:, :, 1] > 0).astype(np.uint8)
+        self.data = np.squeeze(img == 0).astype(np.uint8)
         self.height, self.width = self.data.shape
 
 
@@ -160,7 +160,7 @@ class Player(Drawable):
     def __init__(self, x, y) -> None:
         super().__init__(x, y)
         self.sprite = Sprite()
-        self.sprite.from_png('assets/key.png')
+        self.sprite.from_png('assets/images/key.png')
 
     def update(self, canvas: Canvas) -> None:
         self.draw(canvas)

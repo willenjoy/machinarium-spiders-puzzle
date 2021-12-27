@@ -13,8 +13,7 @@ dots:
    `````
 """
 
-# TODO: automatically detect terminal size if possible
-
+import curses
 import imageio as iio
 import logging
 import numpy as np
@@ -22,7 +21,7 @@ import pygame
 import time
 
 from collections import namedtuple
-from curses import curs_set, wrapper
+from curses import wrapper
 from typing import List, Tuple
 
 logging.basicConfig(level=logging.INFO, 
@@ -42,6 +41,9 @@ PIXEL_MAP = np.array(
      [0x40, 0x80]]
 )
 
+BG_COLOR = (156, 173, 124)
+FG_COLOR = (22, 22, 22)
+
 SIZE = 80
 CENTER = Point(SIZE // 2, SIZE // 2)
 RADIUS = 10
@@ -56,20 +58,25 @@ CONFIG = {
     }
 }
 
+# TODO: investigate newline alternatives in curses to avoid -1 offset
+# TODO: check whether it's possible to reduce the amount of redraws
 def terminal_size(stdscr) -> Tuple[int, int]:
     """
     Get terminal size in characters and multiply by V_STEP and H_STEP
     """
     rows, cols = stdscr.getmaxyx()
-    return cols * H_STEP, rows * V_STEP
+    return (cols - 1) * H_STEP, (rows - 1) * V_STEP
 
 
 def dist2(p1: Point, p2: Point) -> float:
     return (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2
 
 
-def braille_cell(cell: np.array) -> str:
-    return chr(BRAILLE_OFFSET + np.sum(cell * PIXEL_MAP))
+def braille_cell(cell: np.array, bg_char: str = None) -> str:
+    value = np.sum(cell * PIXEL_MAP)
+    if bg_char and not value:
+        return bg_char
+    return chr(BRAILLE_OFFSET + value)
 
 
 # TODO: braillify might output one more row than terminal size
@@ -101,6 +108,7 @@ class SoundManager:
     def play(self, name):
         logger.info(f'Playing sound {self.sounds[name]}')
         ch = self.sounds[name].play()
+        # TODO: is it ok to leave channel open? otherwise blocks some animations
         # while ch.get_busy():
         #     pygame.time.delay(100)
 
@@ -133,7 +141,7 @@ class Canvas:
     def update(self) -> None:
         # debug_str = f'{self.width}x{self.height} - {len(braillify(self.frame))}'
         # self.window.addstr(0, 0, debug_str)
-        self.window.addstr(0, 0, braillify(self.frame))
+        self.window.addstr(0, 0, braillify(self.frame), curses.color_pair(1))
         self.window.refresh()
 
 
@@ -206,7 +214,7 @@ class Player(Drawable):
 
 class Game:
     def __init__(self, window, size, sound_manager) -> None:
-        self.canvas = Canvas(window, SIZE, SIZE)
+        self.canvas = Canvas(window, *size)
         self.player = Player(SIZE // 4, SIZE // 2)
         self.bullets = []
         self.sound_manager = sound_manager
@@ -235,15 +243,33 @@ class Game:
         self.canvas.update()
 
 
+def scale2curses(val):
+    if not 0 <= val <= 255:
+        raise ValueError(f'{val} is not in range 0..255')
+    return round(1000 * val / 255)
+
+
+def rgb2curses(r, g, b):
+    return scale2curses(r), scale2curses(g), scale2curses(b)
+
+
 def main(stdscr):
     pygame.mixer.init()
     sound_manager = SoundManager(CONFIG['sounds'])
 
-    curs_set(0)
+    logger.info(f'Terminal size: {terminal_size(stdscr)}')
+    logger.info(f'Terminal can change color: {curses.can_change_color()}')
+    logger.info(f'Colors available: {curses.has_colors()}')
+
+    curses.start_color()
+    curses.init_color(10, *rgb2curses(*BG_COLOR))
+    curses.init_color(11, *rgb2curses(*FG_COLOR))
+    curses.init_pair(1, 11, 10)
+    curses.curs_set(0)
     stdscr.nodelay(1)
 
     clock = Clock()
-    game = Game(stdscr, (SIZE, SIZE), sound_manager)
+    game = Game(stdscr, terminal_size(stdscr), sound_manager)
 
     clock.start()
     while game.is_running:

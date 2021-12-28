@@ -4,7 +4,7 @@ import time
 from .braillify import H_STEP, V_STEP
 from .common import Vec2
 from .graphics import Canvas
-from .objects import Bullet, ObjectManager, BulletFactory, Block
+from .objects import Bullet, Enemy, ObjectManager, BulletFactory, Block
 from .physics import CollisionManager
 from .sounds import SoundManager
 
@@ -55,7 +55,8 @@ class Game:
         
         # Set up collision physics
         self.collision_manager = CollisionManager(self.object_manager, [
-            (Bullet.kind, Block.kind)
+            (Bullet.kind, Block.kind),
+            (Bullet.kind, Enemy.kind)
         ])
 
         self.is_running = True

@@ -80,6 +80,7 @@ class Player(Object):
         super().__init__(x, y)
         self.sprite = Sprite.from_png(config['sprite'])
 
+    # TODO: player should not be able to go out of bounds
     def process_input(self, key: int) -> None:
         if key == ord('w'):
             self.yc -= 1
@@ -127,6 +128,7 @@ class Collision:
 
 class CollisionTypes(Enum):
     BULLET_BLOCK = (Bullet.kind, Block.kind) 
+    BULLET_ENEMY = (Bullet.kind, Enemy.kind)
 
 
 class ObjectManager:
@@ -170,11 +172,17 @@ class ObjectManager:
         for object in self.traverse():
             object.update(canvas, delta)
 
+    # TODO: add explosion on hit
     def resolve(self, collisions: List[Collision]):
         for c in collisions:
             obj1, obj2 = c.collider, c.collided
             typ = (obj1.kind, obj2.kind)
             if typ == CollisionTypes.BULLET_BLOCK.value:
+                # when bullet hits block, remove bullet
                 self.remove_object(obj1)
+            elif typ == CollisionTypes.BULLET_ENEMY.value:
+                # when bullet hits enemy, remove both enemy and bullet
+                self.remove_object(obj1)
+                self.remove_object(obj2)
             else:
                 assert False, f"bad collision type: {typ}, {CollisionTypes.BULLET_BLOCK.value}"

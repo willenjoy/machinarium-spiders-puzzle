@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import curses
 import imageio as iio
 import logging
 import numpy as np
 
-from typing import Dict
+from typing import Dict, Optional
 
 from .braillify import braillify, H_STEP, V_STEP
 from .common import Vec2, dist2
@@ -77,22 +79,29 @@ class Canvas:
 
 
 class Sprite:
-    def __init__(self, width: int = 0, height: int = 0) -> None:
+    def __init__(self, width: int = 0, height: int = 0, data: Optional[np.array] = None) -> None:
         self.width = width
         self.height = height
-        self.data = np.zeros((height, width), dtype=np.uint8)
+        self.data = data if data is not None else np.zeros((height, width), dtype=np.uint8)
+    
+    @classmethod
+    def from_circle(cls, diameter: int) -> Sprite:
+        radius = diameter // 2
+        center = Vec2(diameter // 2, diameter // 2)
+        sprite = Sprite(diameter, diameter)
+        for row in range(diameter):
+            for col in range(diameter):
+                if dist2(Vec2(col, row), center) < radius ** 2:
+                    sprite.data[row, col] = 1
+        return sprite
 
-    def draw_circle(self, x: int, y: int, radius: int) -> None:
-        for row in range(self.height):
-            for col in range(self.width):
-                if dist2(Vec2(col, row), Vec2(x, y)) < radius ** 2:
-                    self.data[row, col] = 1
-
-    def from_png(self, fname: str) -> None:
+    @classmethod
+    def from_png(cls, fname: str) -> Sprite:
         read_kwargs = {'pilmode': 'L'}
         img = iio.imread(fname, **read_kwargs)
-        self.data = np.squeeze(img == 0).astype(np.uint8)
-        self.height, self.width = self.data.shape
+        data = np.squeeze(img == 0).astype(np.uint8)
+        height, width = data.shape
+        return Sprite(width, height, data)
 
 
 class Drawable:

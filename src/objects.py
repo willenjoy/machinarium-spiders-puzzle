@@ -9,9 +9,7 @@ class Bullet(Drawable):
         super().__init__(x, y)
         self.speed = speed
 
-        self.radius = size // 2
-        self.sprite = Sprite(size, size)
-        self.sprite.draw_circle(self.radius, self.radius, self.radius)
+        self.sprite = Sprite.from_circle(size)
 
     def update(self, canvas: Canvas, delta: float) -> None:
         self.xc += round(self.speed * delta)
@@ -31,8 +29,7 @@ class Player(Drawable):
     def __init__(self, config: Dict) -> None:
         x, y = config['start_pos']
         super().__init__(x, y)
-        self.sprite = Sprite()
-        self.sprite.from_png(config['sprite'])
+        self.sprite = Sprite.from_png(config['sprite'])
 
     def update(self, canvas: Canvas) -> None:
         self.draw(canvas)

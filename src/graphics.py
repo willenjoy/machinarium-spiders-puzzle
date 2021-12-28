@@ -104,6 +104,31 @@ class Sprite:
         return Sprite(width, height, data)
 
 
+class AnimatedSprite:
+    def __init__(self, width: int = 0, height: int = 0, frames: int = 0,
+                    frame_data: Optional[np.array] = None) -> None:
+        self.width = width
+        self.height = height
+        self.frames = frames
+        self.frame_data = frame_data if frame_data is not None \
+            else np.zeros((height, width, frames), dtype=np.uint8)
+        self.current_frame = 0
+    
+    @property
+    def data(self):
+        return np.squeeze(self.frame_data[:, :, self.current_frame])
+
+    # TODO: properly handle animation frames and transparency
+    @classmethod
+    def from_gif(cls, fname: str) -> Sprite:
+        read_kwargs = {'pilmode': 'LA'}
+        img = iio.imread(fname, **read_kwargs)
+        data = np.squeeze(img[:, :, 1] > 0).astype(np.uint8)[:, :, np.newaxis]
+        height, width, frames = data.shape
+        logger.info(f'Read GIF - {frames} frames of size {width}x{height}')
+        return AnimatedSprite(width, height, frames, data)
+
+
 class Drawable:
     def __init__(self, x, y) -> None:
         self.xc = x

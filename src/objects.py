@@ -9,7 +9,7 @@ from enum import Enum
 from typing import List, Dict, Optional
 
 from .common import Vec2, dist2
-from .graphics import Canvas, Sprite, Drawable
+from .graphics import Canvas, Sprite, AnimatedSprite, Drawable
 
 
 logger = logging.getLogger(__name__)
@@ -106,6 +106,19 @@ class Block(Object):
         self.draw(canvas)
 
 
+class Enemy(Object):
+    kind = 'Enemy'
+
+    def __init__(self, config: Dict) -> None:
+        x, y = config['start_pos']
+        super().__init__(x, y)
+        self.sprite = AnimatedSprite.from_gif(config['sprite'])
+        self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
+
+    def update(self, canvas: Canvas, delta: float) -> None:
+        self.draw(canvas)
+
+
 @dataclass
 class Collision:
     collider: Object
@@ -122,7 +135,10 @@ class ObjectManager:
         self.update_params = {}
 
         self.add_object(Player(config['player']))
-        self.add_object(Block(config['block']))
+        for block in config['block']:
+            self.add_object(Block(block))
+        for enemy in config['enemy']:
+            self.add_object(Enemy(enemy))
 
     @property
     def player(self):

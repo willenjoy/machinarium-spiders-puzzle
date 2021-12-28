@@ -17,10 +17,22 @@
             "speed": 100,
             "size": 5
         },
-        "block": {
-            "start_pos": [120, 20],
-            "sprite": "assets/images/block.png"
-        }
+        "block": [
+            {
+                "start_pos": [120, 20],
+                "sprite": "assets/images/block.png"
+            },
+            {
+                "start_pos": [120, 80],
+                "sprite": "assets/images/block.png"
+            }
+        ],
+        "enemy": [
+            {
+                "start_pos": [100, 40],
+                "sprite": "assets/images/spider.gif"
+            }
+        ]
     },
     "sounds": {
         "shoot": "assets/sounds/shoot.wav",

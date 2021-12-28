@@ -41,7 +41,7 @@ class Game:
         self.debug = config['debug']
 
         # Set up sounds
-        self.sound_manager = SoundManager(config['sounds'])
+        SoundManager.init(config['sounds'])
 
         # Set up canvas
         canvas_config = config['canvas']
@@ -70,7 +70,7 @@ class Game:
             # TODO: refactor it as player's method (how to pass sound manager?)
             bullet = self.bullet_factory.create(self.object_manager.player.bullet_spawn_pos())
             self.object_manager.add_object(bullet)
-            self.sound_manager.play('shoot')
+            SoundManager.play('shoot')
 
     def run(self):
         self.clock.start()

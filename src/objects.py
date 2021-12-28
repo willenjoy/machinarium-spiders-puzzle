@@ -10,6 +10,7 @@ from typing import List, Dict, Optional
 
 from .common import Vec2, dist2
 from .graphics import Canvas, Sprite, AnimatedSprite, Drawable
+from .sounds import SoundManager
 
 
 logger = logging.getLogger(__name__)
@@ -180,9 +181,11 @@ class ObjectManager:
             if typ == CollisionTypes.BULLET_BLOCK.value:
                 # when bullet hits block, remove bullet
                 self.remove_object(obj1)
+                SoundManager.play('block_hit')
             elif typ == CollisionTypes.BULLET_ENEMY.value:
                 # when bullet hits enemy, remove both enemy and bullet
                 self.remove_object(obj1)
                 self.remove_object(obj2)
+                SoundManager.play('spider_hit')
             else:
                 assert False, f"bad collision type: {typ}, {CollisionTypes.BULLET_BLOCK.value}"

@@ -23,7 +23,11 @@
                 "sprite": "assets/images/block.png"
             },
             {
-                "start_pos": [120, 80],
+                "start_pos": [130, 20],
+                "sprite": "assets/images/block.png"
+            },
+            {
+                "start_pos": [125, 29],
                 "sprite": "assets/images/block.png"
             }
         ],

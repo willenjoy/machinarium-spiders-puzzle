@@ -188,4 +188,4 @@ class ObjectManager:
                 self.remove_object(obj2)
                 SoundManager.play('spider_hit')
             else:
-                assert False, f"bad collision type: {typ}, {CollisionTypes.BULLET_BLOCK.value}"
+                assert False, f"bad collision type: {typ}"

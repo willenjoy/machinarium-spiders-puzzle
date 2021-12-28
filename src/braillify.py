@@ -1,4 +1,6 @@
 """
+Braille unicode for refining console graphics
+
 http://www.alanwood.net/unicode/braille_patterns.html
 https://github.com/asciimoo/drawille
 
@@ -11,31 +13,38 @@ dots:
    `````
 """
 
+import numpy as np
+
 from typing import List
+
 
 BRAILLE_OFFSET = 0x2800
 H_STEP = 2
 V_STEP = 4
-PIXEL_MAP = [(0x01, 0x08),
-             (0x02, 0x10),
-             (0x04, 0x20),
-             (0x40, 0x80)]
+PIXEL_MAP = np.array([
+    [0x01, 0x08],
+    [0x02, 0x10],
+    [0x04, 0x20],
+    [0x40, 0x80]
+])
 
 
-def braillify(frame: List[List[int]]):
-    rows = len(frame)
-    cols = len(frame[0])
+def braille_cell(cell: np.array, bg_char: str = None) -> str:
+    value = np.sum(cell * PIXEL_MAP)
+    if bg_char and not value:
+        return bg_char
+    return chr(BRAILLE_OFFSET + value)
+
+
+# TODO: add inverse mode for braille
+def braillify(frame: np.array) -> str:
+    rows, cols = frame.shape    
 
     braille = []
     for row in range(0, rows, V_STEP):
-        braille_row = []
+        braille_row = ''
         for col in range(0, cols, H_STEP):
-            braille_cell = BRAILLE_OFFSET
-            for i in range(V_STEP):
-                for j in range(H_STEP):
-                    if frame[row + i][col + j] == 1:
-                        braille_cell |= PIXEL_MAP[i][j]
-            braille_row.append(braille_cell) 
+            braille_row += braille_cell(frame[row:row+V_STEP, col:col+H_STEP])
         braille.append(braille_row)
-    
+
     return braille

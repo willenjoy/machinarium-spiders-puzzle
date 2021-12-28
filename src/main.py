@@ -1,18 +1,3 @@
-"""
-Braille unicode for refining console graphics
-
-http://www.alanwood.net/unicode/braille_patterns.html
-https://github.com/asciimoo/drawille
-
-dots:
-   ,___,
-   |1 4|
-   |2 5|
-   |3 6|
-   |7 8|
-   `````
-"""
-
 import curses
 import imageio as iio
 import logging
@@ -24,22 +9,16 @@ from collections import namedtuple
 from curses import wrapper
 from typing import List, Tuple
 
+from braillify import braillify, H_STEP, V_STEP
+
+
 logging.basicConfig(level=logging.INFO, 
                     format='[%(levelname)s] %(filename)s:%(lineno)s - %(message)s', 
                     filemode='w', filename='log.txt')
 logger = logging.getLogger(__name__)
 
-Point = namedtuple('Point', ['x', 'y'])
 
-BRAILLE_OFFSET = 0x2800
-H_STEP = 2
-V_STEP = 4
-PIXEL_MAP = np.array(
-    [[0x01, 0x08], 
-     [0x02, 0x10], 
-     [0x04, 0x20], 
-     [0x40, 0x80]]
-)
+Point = namedtuple('Point', ['x', 'y'])
 
 BG_COLOR = (156, 173, 124)
 FG_COLOR = (22, 22, 22)
@@ -65,36 +44,27 @@ def terminal_size(stdscr) -> Tuple[int, int]:
     Get terminal size in characters and multiply by V_STEP and H_STEP
     """
     rows, cols = stdscr.getmaxyx()
-    return (cols - 1) * H_STEP, (rows - 1) * V_STEP
+    return (cols - 1) * H_STEP, rows * V_STEP
 
 
 def dist2(p1: Point, p2: Point) -> float:
     return (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2
 
 
-def braille_cell(cell: np.array, bg_char: str = None) -> str:
-    value = np.sum(cell * PIXEL_MAP)
-    if bg_char and not value:
-        return bg_char
-    return chr(BRAILLE_OFFSET + value)
+def scale2curses(val):
+    if not 0 <= val <= 255:
+        raise ValueError(f'{val} is not in range 0..255')
+    return round(1000 * val / 255)
 
 
-# TODO: braillify might output one more row than terminal size
-# TODO: add inverse mode for braille
-def braillify(frame: np.array) -> str:
-    rows, cols = frame.shape    
-
-    braille = ''
-    for row in range(0, rows, V_STEP):
-        for col in range(0, cols, H_STEP):
-            braille += braille_cell(frame[row:row+V_STEP, col:col+H_STEP])
-        braille += '\n'
-    
-    return braille
+def rgb2curses(r, g, b):
+    return scale2curses(r), scale2curses(g), scale2curses(b)
 
 
 class SoundManager:
     def __init__(self, sound_config):
+        pygame.mixer.init()
+
         self.sounds = {}
         for name, path in sound_config.items():
             self.add(name, path)
@@ -127,22 +97,38 @@ class Clock:
         return elapsed
 
 
+# TODO: consider using pads for camera movements
 class Canvas:
     def __init__(self, window, width: int, height: int) -> None:
         self.width = width
         self.height = height
         self.window = window
+        
+        self.cp = 1
+        self._init_colors()
+
+        # hide cursor
+        curses.curs_set(0)
+
+        # run getch in a separate thread to avoid blocking
+        self.window.nodelay(1)
+
         self.clear()
     
+    def _init_colors(self) -> None:
+        curses.start_color()
+        curses.init_color(10, *rgb2curses(*BG_COLOR))
+        curses.init_color(11, *rgb2curses(*FG_COLOR))
+        curses.init_pair(self.cp, 11, 10)
+
     def clear(self) -> None:
         # erase instead of clear helps avoid flickering!!!
         self.window.erase()
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
 
     def update(self) -> None:
-        # debug_str = f'{self.width}x{self.height} - {len(braillify(self.frame))}'
-        # self.window.addstr(0, 0, debug_str)
-        self.window.addstr(0, 0, braillify(self.frame), curses.color_pair(1))
+        for i, row in enumerate(braillify(self.frame)):
+            self.window.addstr(i, 0, row, curses.color_pair(self.cp))
         self.window.refresh()
 
 
@@ -214,11 +200,13 @@ class Player(Drawable):
 
 
 class Game:
-    def __init__(self, window, size, sound_manager) -> None:
+    def __init__(self, window, size, sound_config) -> None:
         self.canvas = Canvas(window, *size)
+        self.window = window
+        self.clock = Clock()
         self.player = Player(SIZE // 4, SIZE // 2)
-        self.bullets = []
-        self.sound_manager = sound_manager
+        self.bullets = []        
+        self.sound_manager = SoundManager(sound_config)
         self.is_running = True
 
     def process_input(self, key: int) -> None:
@@ -236,6 +224,17 @@ class Game:
             self.sound_manager.play('shoot')
         return True
 
+    def run(self):
+        self.clock.start()
+        while self.is_running:
+            delta = self.clock.getElapsed()
+            self.update(delta)
+            self.process_input(self.window.getch())
+            
+            debug_str = 'FPS: {:.2f}'.format(1 / delta)
+            self.window.addstr(0, 0, debug_str)
+            self.window.refresh()
+
     def update(self, delta: float) -> None:
         self.canvas.clear()
         self.player.update(self.canvas)
@@ -244,43 +243,14 @@ class Game:
         self.canvas.update()
 
 
-def scale2curses(val):
-    if not 0 <= val <= 255:
-        raise ValueError(f'{val} is not in range 0..255')
-    return round(1000 * val / 255)
-
-
-def rgb2curses(r, g, b):
-    return scale2curses(r), scale2curses(g), scale2curses(b)
-
-
 def main(stdscr):
-    pygame.mixer.init()
-    sound_manager = SoundManager(CONFIG['sounds'])
-
     logger.info(f'Terminal size: {terminal_size(stdscr)}')
     logger.info(f'Terminal can change color: {curses.can_change_color()}')
     logger.info(f'Colors available: {curses.has_colors()}')
+    
+    game = Game(stdscr, terminal_size(stdscr), CONFIG['sounds'])
 
-    curses.start_color()
-    curses.init_color(10, *rgb2curses(*BG_COLOR))
-    curses.init_color(11, *rgb2curses(*FG_COLOR))
-    curses.init_pair(1, 11, 10)
-    curses.curs_set(0)
-    stdscr.nodelay(1)
-
-    clock = Clock()
-    game = Game(stdscr, terminal_size(stdscr), sound_manager)
-
-    clock.start()
-    while game.is_running:
-        delta = clock.getElapsed()
-        game.update(delta)
-        game.process_input(stdscr.getch())
-        
-        debug_str = 'FPS: {:.2f}'.format(1 / delta)
-        stdscr.addstr(0, 0, debug_str)
-        stdscr.refresh()
+    game.run()
         
 
 

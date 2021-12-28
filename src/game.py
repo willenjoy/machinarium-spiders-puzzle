@@ -13,17 +13,12 @@ from typing import Dict, List
 from .braillify import braillify, H_STEP, V_STEP
 
 
-logging.basicConfig(level=logging.INFO, 
-                    format='[%(levelname)s] %(filename)s:%(lineno)s - %(message)s', 
-                    filemode='w', filename='log.txt')
 logger = logging.getLogger(__name__)
 
 
 Vec2 = namedtuple('Vec2', ['x', 'y'])
 
 
-# TODO: investigate newline alternatives in curses to avoid -1 offset
-# TODO: check whether it's possible to reduce the amount of redraws
 def terminal_size(stdscr) -> Vec2:
     """
     Get terminal size in characters and multiply by V_STEP and H_STEP
@@ -93,6 +88,7 @@ class Canvas:
         logger.info(f'Creating terminal window, size={width}x{height}')
 
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
+        self.inverse = canvas_config['inverse']
 
         self.cp = None
         self._init_colors(canvas_config['colors'])
@@ -130,7 +126,7 @@ class Canvas:
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
 
     def update(self) -> None:
-        for i, row in enumerate(braillify(self.frame)):
+        for i, row in enumerate(braillify(self.frame, self.inverse)):
             self.window.addstr(i, 0, row, curses.color_pair(self.cp))
         self.window.refresh()
 
@@ -215,10 +211,7 @@ class Player(Drawable):
 
 
 class Game:
-    def __init__(self, window, config) -> None:
-        config_str = json.dumps(config, indent=4)
-        logger.info(f'Starting the game with the following config:\n{config_str}')
-        
+    def __init__(self, window, config) -> None:       
         self.window = window
         self.clock = Clock()
         self.sound_manager = SoundManager(config['sounds'])

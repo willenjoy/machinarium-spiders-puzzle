@@ -1,6 +1,7 @@
 {
     "canvas": {
         "size": "auto",
+        "inverse": false,
         "colors": {
             "use_colors": true,
             "bg_color": [156, 173, 124],

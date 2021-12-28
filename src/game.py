@@ -38,6 +38,7 @@ class Game:
     def __init__(self, window, config) -> None:       
         self.window = window
         self.clock = Clock()
+        self.debug = config['debug']
 
         # Set up sounds
         self.sound_manager = SoundManager(config['sounds'])
@@ -78,9 +79,10 @@ class Game:
             self.update(delta)
             self.process_input(self.window.getch())
             
-            debug_str = 'FPS: {:.2f}'.format(1 / delta)
-            self.window.addstr(0, 0, debug_str)
-            self.window.refresh()
+            if self.debug:
+                debug_str = 'FPS: {:.2f}'.format(1 / delta)
+                self.window.addstr(0, 0, debug_str)
+                self.window.refresh()
 
     def update(self, delta: float) -> None:
         self.canvas.clear()

@@ -19,8 +19,8 @@ CONFIG_FILE = 'config.json'
 def merge_args_into_config(config: Dict, args: argparse.Namespace):
     if args.use_colors is not None:
         config['canvas']['colors']['use_colors'] = bool(args.use_colors)
-    if args.inverse is not None:
-        config['canvas']['inverse'] = args.inverse
+    config['canvas']['inverse'] = args.inverse
+    config['debug'] = args.debug
     return config
 
 
@@ -33,6 +33,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--use-colors', type=int, choices=[0, 1])
     parser.add_argument('--inverse', action='store_true')
+    parser.add_argument('--debug', action='store_true')
     parser.add_argument('--config-file', type=str, default=CONFIG_FILE)
     args = parser.parse_args(sys.argv[1:])
 

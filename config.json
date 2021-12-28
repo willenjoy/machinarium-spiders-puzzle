@@ -1,0 +1,26 @@
+{
+    "canvas": {
+        "size": "auto",
+        "colors": {
+            "use_colors": true,
+            "bg_color": [156, 173, 124],
+            "fg_color": [22, 22, 22]
+        }
+    },
+    "objects": {
+        "player": {
+            "start_pos": [20, 40],
+            "sprite": "assets/images/key.png"
+        },
+        "bullet": {
+            "speed": 100,
+            "size": 4
+        }
+    },
+    "sounds": {
+        "shoot": "assets/sounds/shoot.wav",
+        "block_hit": "assets/sounds/block_hit.wav",
+        "player_hit": "assets/sounds/player_hit.wav",
+        "spider_hit": "assets/sounds/spider_hit.wav"
+    }
+}

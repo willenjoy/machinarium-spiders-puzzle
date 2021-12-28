@@ -1,22 +1,18 @@
+import json
+
 from curses import wrapper
 from src import Game
 
 
-CONFIG = {
-    'sounds': {
-        'shoot': 'assets/sounds/shoot.wav',
-        'block_hit': 'assets/sounds/block_hit.wav',
-        'player_hit': 'assets/sounds/player_hit.wav',
-        'spider_hit': 'assets/sounds/spider_hit.wav'
-    }
-}
+CONFIG_FILE = 'config.json'
 
 
 def main(stdscr):
-    game = Game(stdscr, CONFIG['sounds'])
+    with open(CONFIG_FILE, 'r') as f:
+        config = json.load(f)
+    game = Game(stdscr, config)
     game.run()
         
-
 
 if __name__ == "__main__":
     wrapper(main)

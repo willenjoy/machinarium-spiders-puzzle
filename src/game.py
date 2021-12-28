@@ -7,7 +7,7 @@ import time
 
 from collections import namedtuple
 from curses import wrapper
-from typing import List, Sized, Tuple
+from typing import Dict, List
 
 from .braillify import braillify, H_STEP, V_STEP
 
@@ -19,14 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 Vec2 = namedtuple('Vec2', ['x', 'y'])
-
-BG_COLOR = (156, 173, 124)
-FG_COLOR = (22, 22, 22)
-
-SIZE = 80
-CENTER = Vec2(SIZE // 2, SIZE // 2)
-RADIUS = 10
-BULLET_SIZE = 4
 
 
 # TODO: investigate newline alternatives in curses to avoid -1 offset
@@ -91,17 +83,18 @@ class Clock:
 
 # TODO: consider using pads for camera movements
 class Canvas:
-    def __init__(self, window, width: int, height: int, use_colors: bool = True) -> None:
-        logger.info(f'Creating terminal window, size={width}x{height}')
-
+    def __init__(self, window, canvas_config: Dict) -> None:
+        self.window = window
+        width, height = canvas_config['size']
         self.width = width
         self.height = height
-        self.window = window
+
+        logger.info(f'Creating terminal window, size={width}x{height}')
 
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
 
         self.cp = None
-        self._init_colors(use_colors)
+        self._init_colors(canvas_config['colors'])
 
         # hide cursor
         curses.curs_set(0)
@@ -109,9 +102,9 @@ class Canvas:
         # run getch in a separate thread to avoid blocking
         self.window.nodelay(1)
 
-    def _init_colors(self, use_colors) -> None:
+    def _init_colors(self, color_config) -> None:
         self.cp = 0
-        if not use_colors:
+        if not color_config['use_colors']:
             logger.info(f'Using the default color scheme')
             return
 
@@ -125,8 +118,8 @@ class Canvas:
 
         # Default color pair cannot be changed, use color_pair 1
         self.cp = 1
-        curses.init_color(10, *rgb2curses(*BG_COLOR))
-        curses.init_color(11, *rgb2curses(*FG_COLOR))
+        curses.init_color(10, *rgb2curses(*color_config['bg_color']))
+        curses.init_color(11, *rgb2curses(*color_config['fg_color']))
         curses.init_pair(self.cp, 11, 10)
         logger.info(f'Successfully set custom foreground and background colors')
 
@@ -184,7 +177,7 @@ class Drawable:
 
 
 class Bullet(Drawable):
-    def __init__(self, x: int = 0, y: int = 0, speed: int = 100, size: int = 4) -> None:
+    def __init__(self, x: int, y: int, speed: int, size: int) -> None:
         super().__init__(x, y)
         self.speed = speed
 
@@ -197,29 +190,43 @@ class Bullet(Drawable):
         self.draw(canvas)
 
 
+class BulletFactory:
+    def __init__(self, bullet_config: Dict):
+        self.config = bullet_config
+        self.bullet_size = bullet_config['size']
+
+    def create(self, pos: Vec2):
+        return Bullet(pos.x - self.bullet_size // 2, pos.y, **self.config)
+
+
 class Player(Drawable):
-    def __init__(self, x, y) -> None:
+    def __init__(self, config) -> None:
+        x, y = config['start_pos']
         super().__init__(x, y)
         self.sprite = Sprite()
-        self.sprite.from_png('assets/images/key.png')
+        self.sprite.from_png(config['sprite'])
 
     def update(self, canvas: Canvas) -> None:
         self.draw(canvas)
 
-    def bullet_spawn_pos(self, bullet_size) -> Vec2:
-        return Vec2(self.x + self.sprite.width - bullet_size // 2, self.yc)
+    def bullet_spawn_pos(self) -> Vec2:
+        return Vec2(self.x + self.sprite.width, self.yc)
 
 
 class Game:
-    def __init__(self, window, sound_config) -> None:
+    def __init__(self, window, config) -> None:
         self.window = window
         self.clock = Clock()
-        self.sound_manager = SoundManager(sound_config)
+        self.sound_manager = SoundManager(config['sounds'])
 
-        size = terminal_size(window)
-        self.canvas = Canvas(window, *size)
+        canvas_config = config['canvas']
+        if canvas_config['size'] == 'auto':
+            canvas_config['size'] = list(terminal_size(window))
+        self.canvas = Canvas(window, canvas_config)
         
-        self.player = Player(SIZE // 4, SIZE // 2)
+        object_config = config['objects']
+        self.player = Player(object_config['player'])
+        self.bullet_factory = BulletFactory(object_config['bullet'])
         self.bullets = []        
         
         self.is_running = True
@@ -233,8 +240,7 @@ class Game:
             self.player.yc += 1
         elif key == ord(' '):
             # TODO: refactor it as player's method (how to pass sound manager?)
-            bullet = Bullet(*self.player.bullet_spawn_pos(BULLET_SIZE), 
-                            size=BULLET_SIZE)
+            bullet = self.bullet_factory.create(self.player.bullet_spawn_pos())
             self.bullets.append(bullet)
             self.sound_manager.play('shoot')
         return True

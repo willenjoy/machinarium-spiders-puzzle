@@ -1,5 +1,6 @@
 import curses
 import imageio as iio
+import json
 import logging
 import numpy as np
 import pygame
@@ -215,6 +216,9 @@ class Player(Drawable):
 
 class Game:
     def __init__(self, window, config) -> None:
+        config_str = json.dumps(config, indent=4)
+        logger.info(f'Starting the game with the following config:\n{config_str}')
+        
         self.window = window
         self.clock = Clock()
         self.sound_manager = SoundManager(config['sounds'])

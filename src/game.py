@@ -7,9 +7,9 @@ import time
 
 from collections import namedtuple
 from curses import wrapper
-from typing import List, Tuple
+from typing import List, Sized, Tuple
 
-from braillify import braillify, H_STEP, V_STEP
+from .braillify import braillify, H_STEP, V_STEP
 
 
 logging.basicConfig(level=logging.INFO, 
@@ -18,36 +18,28 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
-Point = namedtuple('Point', ['x', 'y'])
+Vec2 = namedtuple('Vec2', ['x', 'y'])
 
 BG_COLOR = (156, 173, 124)
 FG_COLOR = (22, 22, 22)
 
 SIZE = 80
-CENTER = Point(SIZE // 2, SIZE // 2)
+CENTER = Vec2(SIZE // 2, SIZE // 2)
 RADIUS = 10
 BULLET_SIZE = 4
 
-CONFIG = {
-    'sounds': {
-        'shoot': 'assets/sounds/shoot.wav',
-        'block_hit': 'assets/sounds/block_hit.wav',
-        'player_hit': 'assets/sounds/player_hit.wav',
-        'spider_hit': 'assets/sounds/spider_hit.wav'
-    }
-}
 
 # TODO: investigate newline alternatives in curses to avoid -1 offset
 # TODO: check whether it's possible to reduce the amount of redraws
-def terminal_size(stdscr) -> Tuple[int, int]:
+def terminal_size(stdscr) -> Vec2:
     """
     Get terminal size in characters and multiply by V_STEP and H_STEP
     """
     rows, cols = stdscr.getmaxyx()
-    return (cols - 1) * H_STEP, rows * V_STEP
+    return Vec2((cols - 1) * H_STEP, rows * V_STEP)
 
 
-def dist2(p1: Point, p2: Point) -> float:
+def dist2(p1: Vec2, p2: Vec2) -> float:
     return (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2
 
 
@@ -99,13 +91,17 @@ class Clock:
 
 # TODO: consider using pads for camera movements
 class Canvas:
-    def __init__(self, window, width: int, height: int) -> None:
+    def __init__(self, window, width: int, height: int, use_colors: bool = True) -> None:
+        logger.info(f'Creating terminal window, size={width}x{height}')
+
         self.width = width
         self.height = height
         self.window = window
-        
-        self.cp = 1
-        self._init_colors()
+
+        self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
+
+        self.cp = None
+        self._init_colors(use_colors)
 
         # hide cursor
         curses.curs_set(0)
@@ -113,13 +109,26 @@ class Canvas:
         # run getch in a separate thread to avoid blocking
         self.window.nodelay(1)
 
-        self.clear()
-    
-    def _init_colors(self) -> None:
+    def _init_colors(self, use_colors) -> None:
+        self.cp = 0
+        if not use_colors:
+            logger.info(f'Using the default color scheme')
+            return
+
         curses.start_color()
+        logger.info(f'Terminal can change color: {curses.can_change_color()}')
+        logger.info(f'Colors available: {curses.has_colors()}')
+
+        if not curses.can_change_color():
+            logger.info(f'Cannot set custom colors')
+            return 
+
+        # Default color pair cannot be changed, use color_pair 1
+        self.cp = 1
         curses.init_color(10, *rgb2curses(*BG_COLOR))
         curses.init_color(11, *rgb2curses(*FG_COLOR))
         curses.init_pair(self.cp, 11, 10)
+        logger.info(f'Successfully set custom foreground and background colors')
 
     def clear(self) -> None:
         # erase instead of clear helps avoid flickering!!!
@@ -141,7 +150,9 @@ class Sprite:
     def draw_circle(self, x: int, y: int, radius: int) -> None:
         for row in range(self.height):
             for col in range(self.width):
-                if dist2(Point(col, row), Point(x, y)) < radius ** 2:
+                if dist2(Vec2
+            (col, row), Vec2
+            (x, y)) < radius ** 2:
                     self.data[row, col] = 1
 
     def from_png(self, fname: str) -> None:
@@ -195,18 +206,22 @@ class Player(Drawable):
     def update(self, canvas: Canvas) -> None:
         self.draw(canvas)
 
-    def bullet_spawn_point(self, bullet_size) -> Point:
-        return self.x + self.sprite.width - bullet_size // 2, self.yc
+    def bullet_spawn_pos(self, bullet_size) -> Vec2:
+        return Vec2(self.x + self.sprite.width - bullet_size // 2, self.yc)
 
 
 class Game:
-    def __init__(self, window, size, sound_config) -> None:
-        self.canvas = Canvas(window, *size)
+    def __init__(self, window, sound_config) -> None:
         self.window = window
         self.clock = Clock()
+        self.sound_manager = SoundManager(sound_config)
+
+        size = terminal_size(window)
+        self.canvas = Canvas(window, *size)
+        
         self.player = Player(SIZE // 4, SIZE // 2)
         self.bullets = []        
-        self.sound_manager = SoundManager(sound_config)
+        
         self.is_running = True
 
     def process_input(self, key: int) -> None:
@@ -218,7 +233,7 @@ class Game:
             self.player.yc += 1
         elif key == ord(' '):
             # TODO: refactor it as player's method (how to pass sound manager?)
-            bullet = Bullet(*self.player.bullet_spawn_point(BULLET_SIZE), 
+            bullet = Bullet(*self.player.bullet_spawn_pos(BULLET_SIZE), 
                             size=BULLET_SIZE)
             self.bullets.append(bullet)
             self.sound_manager.play('shoot')
@@ -241,18 +256,3 @@ class Game:
         for bullet in self.bullets:
             bullet.update(self.canvas, delta)
         self.canvas.update()
-
-
-def main(stdscr):
-    logger.info(f'Terminal size: {terminal_size(stdscr)}')
-    logger.info(f'Terminal can change color: {curses.can_change_color()}')
-    logger.info(f'Colors available: {curses.has_colors()}')
-    
-    game = Game(stdscr, terminal_size(stdscr), CONFIG['sounds'])
-
-    game.run()
-        
-
-
-if __name__ == "__main__":
-    wrapper(main)

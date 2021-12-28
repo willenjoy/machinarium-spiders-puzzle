@@ -3,7 +3,7 @@ import time
 from .braillify import H_STEP, V_STEP
 from .common import Vec2
 from .graphics import Canvas
-from .objects import Player, BulletFactory
+from .objects import ObjectManager, BulletFactory
 from .sounds import SoundManager
 
 
@@ -45,25 +45,20 @@ class Game:
         
         # Set up in-game objects
         object_config = config['objects']
-        self.player = Player(object_config['player'])
+        self.object_manager = ObjectManager(object_config)
         self.bullet_factory = BulletFactory(object_config['bullet'])
-        self.bullets = []
         
         self.is_running = True
 
     def process_input(self, key: int) -> None:
+        self.object_manager.process_input(key)
         if key == ord('q'):
             self.is_running = False
-        elif key == ord('w'):
-            self.player.yc -= 1
-        elif key == ord('s'):
-            self.player.yc += 1
         elif key == ord(' '):
             # TODO: refactor it as player's method (how to pass sound manager?)
-            bullet = self.bullet_factory.create(self.player.bullet_spawn_pos())
-            self.bullets.append(bullet)
+            bullet = self.bullet_factory.create(self.object_manager.player.bullet_spawn_pos())
+            self.object_manager.add_object('bullet', bullet)
             self.sound_manager.play('shoot')
-        return True
 
     def run(self):
         self.clock.start()
@@ -78,7 +73,5 @@ class Game:
 
     def update(self, delta: float) -> None:
         self.canvas.clear()
-        self.player.update(self.canvas)
-        for bullet in self.bullets:
-            bullet.update(self.canvas, delta)
+        self.object_manager.update(self.canvas, delta)
         self.canvas.update()

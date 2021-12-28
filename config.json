@@ -15,7 +15,11 @@
         },
         "bullet": {
             "speed": 100,
-            "size": 4
+            "size": 5
+        },
+        "block": {
+            "start_pos": [120, 20],
+            "sprite": "assets/images/block.png"
         }
     },
     "sounds": {

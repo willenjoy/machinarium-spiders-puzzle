@@ -135,7 +135,8 @@ class Canvas:
         self.clear()
     
     def clear(self) -> None:
-        self.window.clear()
+        # erase instead of clear helps avoid flickering!!!
+        self.window.erase()
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
 
     def update(self) -> None:
@@ -279,6 +280,7 @@ def main(stdscr):
         
         debug_str = 'FPS: {:.2f}'.format(1 / delta)
         stdscr.addstr(0, 0, debug_str)
+        stdscr.refresh()
         
 
 

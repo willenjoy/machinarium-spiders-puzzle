@@ -1,10 +1,15 @@
+import logging
 import time
 
 from .braillify import H_STEP, V_STEP
 from .common import Vec2
 from .graphics import Canvas
-from .objects import ObjectManager, BulletFactory
+from .objects import Bullet, ObjectManager, BulletFactory, Block
+from .physics import CollisionManager
 from .sounds import SoundManager
+
+
+logger = logging.getLogger(__name__)
 
 
 def terminal_size(stdscr) -> Vec2:
@@ -48,6 +53,11 @@ class Game:
         self.object_manager = ObjectManager(object_config)
         self.bullet_factory = BulletFactory(object_config['bullet'])
         
+        # Set up collision physics
+        self.collision_manager = CollisionManager(self.object_manager, [
+            (Bullet.kind, Block.kind)
+        ])
+
         self.is_running = True
 
     def process_input(self, key: int) -> None:
@@ -57,7 +67,7 @@ class Game:
         elif key == ord(' '):
             # TODO: refactor it as player's method (how to pass sound manager?)
             bullet = self.bullet_factory.create(self.object_manager.player.bullet_spawn_pos())
-            self.object_manager.add_object('bullet', bullet)
+            self.object_manager.add_object(bullet)
             self.sound_manager.play('shoot')
 
     def run(self):
@@ -74,4 +84,6 @@ class Game:
     def update(self, delta: float) -> None:
         self.canvas.clear()
         self.object_manager.update(self.canvas, delta)
+        collisions = list(self.collision_manager.update())
+        self.object_manager.resolve(collisions)
         self.canvas.update()

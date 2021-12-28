@@ -1,52 +1,62 @@
-from collections import defaultdict
-from typing import Dict
+from __future__ import annotations
 
-from .common import Vec2
+import logging
+import numpy as np
+
+from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, Dict, Optional
+
+from .common import Vec2, dist2
 from .graphics import Canvas, Sprite, Drawable
 
 
-class ObjectManager:
-    def __init__(self, config: Dict) -> None:
-        self.objects = defaultdict(list)
-        self.update_params = {}
-
-        self.add_object('player', Player(config['player']))
-        self.add_object('block', Block(config['block']))
-
-    @property
-    def player(self):
-        return self.objects['player'][0]
-
-    @property
-    def kinds(self):
-        return self.objects.keys()
-
-    def traverse(self):
-        for objects in self.objects.values():
-            for object in objects:
-                yield object
-
-    def add_object(self, kind, object):
-        if kind == 'player':
-            assert len(self.objects[kind]) == 0, "Player must be unique"
-        self.objects[kind].append(object)
-
-    def process_input(self, key: int):
-        for object in self.traverse():
-            if hasattr(object, 'process_input'):
-                object.process_input(key)
-
-    def update(self, canvas: Canvas, delta: float):
-        for object in self.traverse():
-            object.update(canvas, delta)
+logger = logging.getLogger(__name__)
 
 
-class Bullet(Drawable):
+class Hitbox:
+    def __init__(self, width: int, height: int, data: Optional[np.array] = None) -> None:
+        self.width = width
+        self.height = height
+        if data is not None:
+            self.data = data
+        else:
+            self.data = np.zeros((height, width), dtype=np.uint8)
+
+    @classmethod
+    def from_circle(cls, diameter: int) -> Hitbox:
+        radius = diameter // 2
+        center = Vec2(diameter // 2, diameter // 2)
+        hitbox = Hitbox(diameter, diameter)
+        for row in range(diameter):
+            for col in range(diameter):
+                if dist2(Vec2(col, row), center) < radius ** 2:
+                    hitbox.data[row, col] = 1
+        return hitbox
+
+    @classmethod
+    def from_rectangle(cls, width: int, height: int) -> Hitbox:
+        return Hitbox(width, height, np.ones((width, height), dtype=np.uint8))
+
+
+class Object(Drawable):
+    kind = 'Object'
+
+    def __init(self, x: int, y: int):
+        super().__init__(x, y)
+        self.hitbox = Hitbox(0, 0)
+
+
+class Bullet(Object):
+    kind = 'Bullet'
+
     def __init__(self, x: int, y: int, speed: int, size: int) -> None:
         super().__init__(x, y)
         self.speed = speed
 
         self.sprite = Sprite.from_circle(size)
+        self.hitbox = Hitbox.from_circle(size)
 
     def update(self, canvas: Canvas, delta: float) -> None:
         self.xc += round(self.speed * delta)
@@ -62,7 +72,9 @@ class BulletFactory:
         return Bullet(pos.x - self.bullet_size // 2, pos.y, **self.config)
 
 
-class Player(Drawable):
+class Player(Object):
+    kind = 'Player'
+
     def __init__(self, config: Dict) -> None:
         x, y = config['start_pos']
         super().__init__(x, y)
@@ -81,11 +93,72 @@ class Player(Drawable):
         return Vec2(self.x + self.sprite.width, self.yc)
 
 
-class Block(Drawable):
+class Block(Object):
+    kind = 'Block'
+
     def __init__(self, config: Dict) -> None:
         x, y = config['start_pos']
         super().__init__(x, y)
         self.sprite = Sprite.from_png(config['sprite'])
+        self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
 
     def update(self, canvas: Canvas, delta: float) -> None:
         self.draw(canvas)
+
+
+@dataclass
+class Collision:
+    collider: Object
+    collided: Object
+
+
+class CollisionTypes(Enum):
+    BULLET_BLOCK = (Bullet.kind, Block.kind) 
+
+
+class ObjectManager:
+    def __init__(self, config: Dict) -> None:
+        self.objects = defaultdict(list)
+        self.update_params = {}
+
+        self.add_object(Player(config['player']))
+        self.add_object(Block(config['block']))
+
+    @property
+    def player(self):
+        return self.objects[Player.kind][0]
+
+    def traverse(self):
+        for objects in self.objects.values():
+            for object in objects:
+                yield object
+
+    def add_object(self, object):
+        kind = object.kind
+        if kind == Player.kind:
+            assert len(self.objects[kind]) == 0, "Player must be unique"
+        self.objects[kind].append(object)
+        logger.info(f'Adding object to the game: {kind} - {object}')
+
+    def remove_object(self, object):
+        kind = object.kind
+        self.objects[kind].remove(object)
+        logger.info(f'Removing object from the game: {kind} - {object}')
+
+    def process_input(self, key: int):
+        for object in self.traverse():
+            if hasattr(object, 'process_input'):
+                object.process_input(key)
+
+    def update(self, canvas: Canvas, delta: float):
+        for object in self.traverse():
+            object.update(canvas, delta)
+
+    def resolve(self, collisions: List[Collision]):
+        for c in collisions:
+            obj1, obj2 = c.collider, c.collided
+            typ = (obj1.kind, obj2.kind)
+            if typ == CollisionTypes.BULLET_BLOCK.value:
+                self.remove_object(obj1)
+            else:
+                assert False, f"bad collision type: {typ}, {CollisionTypes.BULLET_BLOCK.value}"

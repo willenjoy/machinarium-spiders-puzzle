@@ -118,6 +118,7 @@ class Drawable:
     def y(self) -> int:
         return self.yc - self.sprite.height // 2
 
+    # TODO: sprites should have an option to be transparent
     def draw(self, canvas: Canvas):
         w_visible = min(self.sprite.width, canvas.width - self.x)
         h_visible = min(self.sprite.height, canvas.height - self.y)

@@ -4,13 +4,11 @@ import logging
 import numpy as np
 
 from collections import defaultdict
-from dataclasses import dataclass
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 
 from .common import Vec2, dist2
-from .events import AnimationEndedEvent, CollisionEvent, Event
-from .graphics import Canvas, Sprite, AnimatedSprite, Drawable
-from .sounds import SoundManager
+from .events import AnimationEndedEvent, Event
+from .graphics import Canvas, Sprite, AnimatedSprite
 
 
 logger = logging.getLogger(__name__)
@@ -41,12 +39,25 @@ class Hitbox:
         return Hitbox(width, height, np.ones((width, height), dtype=np.uint8))
 
 
-class Object(Drawable):
+class Object():
     kind = 'Object'
 
-    def __init(self, x: int, y: int):
-        super().__init__(x, y)
+    def __init__(self, x, y) -> None:
+        self.xc = x
+        self.yc = y
+        self.sprite = Sprite()
         self.hitbox = Hitbox(0, 0)
+
+    @property
+    def x(self) -> int:
+        return self.xc - self.sprite.width // 2
+    
+    @property
+    def y(self) -> int:
+        return self.yc - self.sprite.height // 2
+
+    def draw(self, canvas: Canvas):
+        self.sprite.draw(canvas, self.x, self.y)
 
 
 class Bullet(Object):

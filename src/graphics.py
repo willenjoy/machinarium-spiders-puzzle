@@ -90,6 +90,14 @@ class Sprite:
         self.height = height
         self.data = data if data is not None else np.zeros((height, width), dtype=np.uint8)
     
+    # TODO: sprites should have an option to be transparent
+    def draw(self, canvas: Canvas, x: int, y: int):
+        w_visible = min(self.width, canvas.width - x)
+        h_visible = min(self.height, canvas.height - y)
+        # logger.info(f'{self.kind} x={self.x}, y={self.y}, w={w_visible}, h={h_visible}')
+        if w_visible > 0 and h_visible > 0:
+            canvas.frame[y:y+h_visible, x:x+w_visible] = self.data[:h_visible, :w_visible]
+
     @classmethod
     def from_circle(cls, diameter: int) -> Sprite:
         radius = diameter // 2
@@ -110,7 +118,7 @@ class Sprite:
         return Sprite(width, height, data)
 
 
-class AnimatedSprite:
+class AnimatedSprite(Sprite):
     SUPPORTED_MODES = ['repeat', 'stop']
 
     def __init__(self, width: int = 0, height: int = 0, frames: int = 0,
@@ -162,7 +170,6 @@ class AnimatedSprite:
             assert False, "unreachable"
         return True
 
-    # TODO: properly handle animation frames and transparency
     # TODO: load sprites from files only once, not at every spawn
     @classmethod
     def from_gif(cls, fname: str, **kwargs: Dict) -> AnimatedSprite:
@@ -173,27 +180,3 @@ class AnimatedSprite:
         height, width, n_frames = data.shape
         logger.info(f'Read GIF - {n_frames} frames of size {width}x{height}')
         return AnimatedSprite(width, height, n_frames, data, **kwargs)
-
-
-class Drawable:
-    def __init__(self, x, y) -> None:
-        self.xc = x
-        self.yc = y
-        self.sprite = Sprite()
-
-    @property
-    def x(self) -> int:
-        return self.xc - self.sprite.width // 2
-    
-    @property
-    def y(self) -> int:
-        return self.yc - self.sprite.height // 2
-
-    # TODO: sprites should have an option to be transparent
-    # TODO: move drawing logic to the sprite class
-    def draw(self, canvas: Canvas):
-        w_visible = min(self.sprite.width, canvas.width - self.x)
-        h_visible = min(self.sprite.height, canvas.height - self.y)
-        # logger.info(f'{self.kind} x={self.x}, y={self.y}, w={w_visible}, h={h_visible}')
-        if w_visible > 0 and h_visible > 0:
-            canvas.frame[self.y:self.y+h_visible, self.x:self.x+w_visible] = self.sprite.data[:h_visible, :w_visible]

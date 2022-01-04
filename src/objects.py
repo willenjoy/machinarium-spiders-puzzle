@@ -5,10 +5,10 @@ import numpy as np
 
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
 from typing import List, Dict, Optional
 
 from .common import Vec2, dist2
+from .events import AnimationEndedEvent, CollisionEvent, Event
 from .graphics import Canvas, Sprite, AnimatedSprite, Drawable
 from .sounds import SoundManager
 
@@ -59,7 +59,7 @@ class Bullet(Object):
         self.sprite = Sprite.from_circle(size)
         self.hitbox = Hitbox.from_circle(size)
 
-    def update(self, canvas: Canvas, delta: float) -> None:
+    def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
         self.xc += round(self.speed * delta)
         self.draw(canvas)
 
@@ -88,7 +88,7 @@ class Player(Object):
         elif key == ord('s'):
             self.yc += 1
 
-    def update(self, canvas: Canvas, delta: float) -> None:
+    def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
         self.draw(canvas)
 
     def bullet_spawn_pos(self) -> Vec2:
@@ -104,7 +104,7 @@ class Block(Object):
         self.sprite = Sprite.from_png(config['sprite'])
         self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
 
-    def update(self, canvas: Canvas, delta: float) -> None:
+    def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
         self.draw(canvas)
 
 
@@ -112,39 +112,53 @@ class Enemy(Object):
     kind = 'Enemy'
 
     def __init__(self, config: Dict) -> None:
-        x, y = config['start_pos']
+        x, y = config.pop('start_pos')
         super().__init__(x, y)
-        self.sprite = AnimatedSprite.from_gif(config['sprite'])
+        fname = config.pop('sprite')
+        self.sprite = AnimatedSprite.from_gif(fname, **config)
         self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
 
-    def update(self, canvas: Canvas, delta: float) -> None:
+    def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
+        e = self.sprite.update(delta)
+        if not e:
+            logger.info('Explosion animation ended')
+            return AnimationEndedEvent(sender=self)
         self.draw(canvas)
 
 
-@dataclass
-class Collision:
-    collider: Object
-    collided: Object
+class ExplosionFactory:
+    def __init__(self, config: Dict):
+        self.config = config
+
+    def create(self, pos: Vec2) -> Explosion:
+        return Explosion(pos.x, pos.y, **self.config)
 
 
-class CollisionTypes(Enum):
-    BULLET_BLOCK = (Bullet.kind, Block.kind) 
-    BULLET_ENEMY = (Bullet.kind, Enemy.kind)
+class Explosion(Object):
+    kind = 'Explosion'
+
+    def __init__(self, x: int = 0, y: int = 0, **kwargs) -> Optional[Event]:
+        super().__init__(x, y)
+
+        fname = kwargs.pop('sprite')
+        self.sprite = AnimatedSprite.from_gif(fname, **kwargs)
+
+    def update(self, canvas: Canvas, delta: float):
+        e = self.sprite.update(delta)
+        if not e:
+            logger.info('Explosion animation ended')
+            return AnimationEndedEvent(sender=self)
+        self.draw(canvas)
 
 
 class ObjectManager:
-    def __init__(self, config: Dict) -> None:
+    def __init__(self) -> None:
         self.objects = defaultdict(list)
-        self.update_params = {}
-
-        self.add_object(Player(config['player']))
-        for block in config['block']:
-            self.add_object(Block(block))
-        for enemy in config['enemy']:
-            self.add_object(Enemy(enemy))
+        self.remove_queue = []
 
     @property
     def player(self):
+        assert self.objects[Player.kind], "Player was not added"
         return self.objects[Player.kind][0]
 
     def traverse(self):
@@ -170,22 +184,9 @@ class ObjectManager:
                 object.process_input(key)
 
     def update(self, canvas: Canvas, delta: float):
+        events = []
         for object in self.traverse():
-            object.update(canvas, delta)
-
-    # TODO: add explosion on hit
-    def resolve(self, collisions: List[Collision]):
-        for c in collisions:
-            obj1, obj2 = c.collider, c.collided
-            typ = (obj1.kind, obj2.kind)
-            if typ == CollisionTypes.BULLET_BLOCK.value:
-                # when bullet hits block, remove bullet
-                self.remove_object(obj1)
-                SoundManager.play('block_hit')
-            elif typ == CollisionTypes.BULLET_ENEMY.value:
-                # when bullet hits enemy, remove both enemy and bullet
-                self.remove_object(obj1)
-                self.remove_object(obj2)
-                SoundManager.play('spider_hit')
-            else:
-                assert False, f"bad collision type: {typ}"
+            e = object.update(canvas, delta)
+            if e:
+                events.append(e)
+        return events

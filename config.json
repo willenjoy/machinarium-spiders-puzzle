@@ -17,6 +17,11 @@
             "speed": 100,
             "size": 5
         },
+        "explosion": {
+            "fps": 7, 
+            "sprite": "assets/images/explosion.gif",
+            "mode": "stop"
+        },
         "block": [
             {
                 "start_pos": [120, 20],
@@ -34,7 +39,9 @@
         "enemy": [
             {
                 "start_pos": [100, 40],
-                "sprite": "assets/images/spider.gif"
+                "sprite": "assets/images/spider.gif",
+                "fps": 6, 
+                "mode": "repeat"
             }
         ]
     },

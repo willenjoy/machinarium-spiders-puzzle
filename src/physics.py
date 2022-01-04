@@ -18,7 +18,8 @@ from collections import defaultdict
 from typing import List, Tuple
 
 from .common import Vec2
-from .objects import Collision, ObjectManager
+from .events import CollisionEvent
+from .objects import ObjectManager
 
 
 logger = logging.getLogger(__name__)
@@ -66,7 +67,8 @@ class CollisionManager:
         for kind_other in self.collide[obj.kind]:
             for other in self.object_manager.objects[kind_other]:
                 if collide(obj, other):
-                    yield Collision(collider=obj, collided=other)
+                    yield CollisionEvent(collider=obj, collided=other)
+                
 
     def update(self):
         for kind, objects in self.object_manager.objects.items():
@@ -76,3 +78,4 @@ class CollisionManager:
             logger.info(f'Checking collisions for {kind}: {objects}')
             for object in objects:
                 yield from self.check(object)
+                logger.info(self.object_manager.objects)

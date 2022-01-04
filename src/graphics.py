@@ -7,6 +7,8 @@ import numpy as np
 
 from typing import Dict, Optional
 
+from src.events import AnimationEndedEvent
+
 from .braillify import braillify, H_STEP, V_STEP
 from .common import Vec2, dist2
 
@@ -22,6 +24,10 @@ def scale2curses(val):
 
 def rgb2curses(r, g, b):
     return scale2curses(r), scale2curses(g), scale2curses(b)
+
+
+def preprocess_image(img):
+    return np.squeeze(img[:, :, 1] > 0).astype(np.uint8)
 
 
 # TODO: consider using pads for camera movements
@@ -105,28 +111,68 @@ class Sprite:
 
 
 class AnimatedSprite:
+    SUPPORTED_MODES = ['repeat', 'stop']
+
     def __init__(self, width: int = 0, height: int = 0, frames: int = 0,
-                    frame_data: Optional[np.array] = None) -> None:
+                 frame_data: Optional[np.array] = None, 
+                 mode: str = 'repeat', fps: int = 5) -> None:
         self.width = width
         self.height = height
         self.frames = frames
         self.frame_data = frame_data if frame_data is not None \
             else np.zeros((height, width, frames), dtype=np.uint8)
+        
+        self.fps = fps
+        self.update_time = 1.0 / fps
+        self.mode = mode
+        if mode not in self.SUPPORTED_MODES:
+            assert False, f"mode {self.mode} is not implemented"
+
+        logger.info(f'Added new animated sprite: mode={mode}, fps={fps}')
+
         self.current_frame = 0
+        self.elapsed = 0
     
     @property
     def data(self):
         return np.squeeze(self.frame_data[:, :, self.current_frame])
 
+    def update(self, delta: float):
+        """
+        Returns false if got rid of animation frames, true otherwise
+        (when did not update frame, there are enough frames, or mode
+        is set to repeat)
+        """
+        self.elapsed += delta
+        if self.elapsed < self.update_time:
+            return True
+        
+        self.elapsed -= self.update_time
+        self.current_frame += 1
+        if self.current_frame < self.frames:
+            return True
+        
+        if self.mode == "repeat":
+            self.current_frame = 0
+        elif self.mode == "stop":
+            self.current_frame -= 1
+            logger.info('Animation ended - sprite update')
+            return False
+        else:
+            assert False, "unreachable"
+        return True
+
     # TODO: properly handle animation frames and transparency
+    # TODO: load sprites from files only once, not at every spawn
     @classmethod
-    def from_gif(cls, fname: str) -> Sprite:
+    def from_gif(cls, fname: str, **kwargs: Dict) -> AnimatedSprite:
         read_kwargs = {'pilmode': 'LA'}
-        img = iio.imread(fname, **read_kwargs)
-        data = np.squeeze(img[:, :, 1] > 0).astype(np.uint8)[:, :, np.newaxis]
-        height, width, frames = data.shape
-        logger.info(f'Read GIF - {frames} frames of size {width}x{height}')
-        return AnimatedSprite(width, height, frames, data)
+        im = iio.get_reader(fname, **read_kwargs)
+        frames = [preprocess_image(im.get_data(i)) for i in range(len(im))]
+        data = np.dstack(frames)
+        height, width, n_frames = data.shape
+        logger.info(f'Read GIF - {n_frames} frames of size {width}x{height}')
+        return AnimatedSprite(width, height, n_frames, data, **kwargs)
 
 
 class Drawable:
@@ -144,8 +190,10 @@ class Drawable:
         return self.yc - self.sprite.height // 2
 
     # TODO: sprites should have an option to be transparent
+    # TODO: move drawing logic to the sprite class
     def draw(self, canvas: Canvas):
         w_visible = min(self.sprite.width, canvas.width - self.x)
         h_visible = min(self.sprite.height, canvas.height - self.y)
+        # logger.info(f'{self.kind} x={self.x}, y={self.y}, w={w_visible}, h={h_visible}')
         if w_visible > 0 and h_visible > 0:
             canvas.frame[self.y:self.y+h_visible, self.x:self.x+w_visible] = self.sprite.data[:h_visible, :w_visible]

@@ -1,10 +1,18 @@
+# TODO: introduce better object naming system for logging
+# e.g. <Sound object at 0x7fa535d23870> -> Sound X
+
 import logging
 import time
 
+from numpy import exp
+from typing import List
+
 from .braillify import H_STEP, V_STEP
 from .common import Vec2
+from .events import AnimationEndedEvent, CollisionEvent, Event, CollisionTypes
 from .graphics import Canvas
-from .objects import Bullet, Enemy, ObjectManager, BulletFactory, Block
+from .objects import Bullet, Enemy, ExplosionFactory, Player, \
+                     ObjectManager, BulletFactory, Block, Explosion
 from .physics import CollisionManager
 from .sounds import SoundManager
 
@@ -51,9 +59,15 @@ class Game:
         
         # Set up in-game objects
         object_config = config['objects']
-        self.object_manager = ObjectManager(object_config)
+        self.object_manager = ObjectManager()
         self.bullet_factory = BulletFactory(object_config['bullet'])
-        
+        self.explosion_factory = ExplosionFactory(object_config['explosion'])
+        self.object_manager.add_object(Player(object_config['player']))
+        for block in object_config['block']:
+            self.object_manager.add_object(Block(block))
+        for enemy in object_config['enemy']:
+            self.object_manager.add_object(Enemy(enemy))
+
         # Set up collision physics
         self.collision_manager = CollisionManager(self.object_manager, [
             (Bullet.kind, Block.kind),
@@ -86,7 +100,45 @@ class Game:
 
     def update(self, delta: float) -> None:
         self.canvas.clear()
-        self.object_manager.update(self.canvas, delta)
+        events = self.object_manager.update(self.canvas, delta)
         collisions = list(self.collision_manager.update())
-        self.object_manager.resolve(collisions)
+        self.resolve(events + collisions)
         self.canvas.update()
+
+    def resolve(self, events: List[Event]):
+        for e in events:
+            logger.info(f'Resolving event {e}')
+            if isinstance(e, CollisionEvent):
+                self.resolve_collision(e)
+            elif isinstance(e, AnimationEndedEvent):
+                self.resolve_animation_end(e)
+            else:
+                assert False, "Unsupported event type in resolve"
+    
+    def resolve_animation_end(self, e: AnimationEndedEvent):
+        obj = e.sender
+        logger.info(f'Resolving animation end event from {type(obj)}')
+        if isinstance(obj, Explosion):
+            self.object_manager.remove_object(obj)
+        else:
+            assert False, "Unexpected object type in resolve_animation_end"
+
+    def resolve_collision(self, c: CollisionEvent):
+        obj1, obj2 = c.collider, c.collided
+        typ = (obj1.kind, obj2.kind)
+
+        # Spawn an explosion at the center of the first object
+        explosion = self.explosion_factory.create(Vec2(obj1.xc, obj1.yc))
+        self.object_manager.add_object(explosion)
+
+        if typ == CollisionTypes.BULLET_BLOCK.value:
+            # when bullet hits block, remove bullet
+            self.object_manager.remove_object(obj1)
+            SoundManager.play('block_hit')
+        elif typ == CollisionTypes.BULLET_ENEMY.value:
+            # when bullet hits enemy, remove both enemy and bullet
+            self.object_manager.remove_object(obj1)
+            self.object_manager.remove_object(obj2)
+            SoundManager.play('spider_hit')
+        else:
+            assert False, f"bad collision type: {typ}"

@@ -27,10 +27,12 @@ def rgb2curses(r, g, b):
 
 
 def preprocess_image(img):
-    return np.squeeze(img[:, :, 1] > 0).astype(np.uint8)
+    return np.squeeze(img[:, :, 0] == 0).astype(np.uint8), \
+           np.squeeze(img[:, :, 1] > 0).astype(np.uint8)
 
 
 # TODO: consider using pads for camera movements
+# TODO: assign game objects to layers to control draw order
 class Canvas:
     def __init__(self, window, canvas_config: Dict) -> None:
         self.window = window
@@ -85,18 +87,24 @@ class Canvas:
 
 
 class Sprite:
-    def __init__(self, width: int = 0, height: int = 0, data: Optional[np.array] = None) -> None:
+    def __init__(self, width: int = 0, height: int = 0, 
+                 data: Optional[np.array] = None,
+                 mask: Optional[np.array] = None) -> None:
         self.width = width
         self.height = height
         self.data = data if data is not None else np.zeros((height, width), dtype=np.uint8)
+        self.mask = mask if mask is not None else np.zeros((height, width), dtype=np.uint8)
     
-    # TODO: sprites should have an option to be transparent
+    # TODO: handle case of negative y somehow
     def draw(self, canvas: Canvas, x: int, y: int):
         w_visible = min(self.width, canvas.width - x)
         h_visible = min(self.height, canvas.height - y)
-        # logger.info(f'{self.kind} x={self.x}, y={self.y}, w={w_visible}, h={h_visible}')
+        logger.info(f'{canvas.frame}')
+        logger.info(f'x={x}, y={y}, w={w_visible}, h={h_visible}')
         if w_visible > 0 and h_visible > 0:
-            canvas.frame[y:y+h_visible, x:x+w_visible] = self.data[:h_visible, :w_visible]
+            np.putmask(canvas.frame[y:y+h_visible, x:x+w_visible],
+                       self.mask[:h_visible, :w_visible],
+                       self.data[:h_visible, :w_visible])
 
     @classmethod
     def from_circle(cls, diameter: int) -> Sprite:
@@ -107,27 +115,31 @@ class Sprite:
             for col in range(diameter):
                 if dist2(Vec2(col, row), center) < radius ** 2:
                     sprite.data[row, col] = 1
+                    sprite.mask[row, col] = 1
         return sprite
 
     @classmethod
     def from_png(cls, fname: str) -> Sprite:
-        read_kwargs = {'pilmode': 'L'}
+        read_kwargs = {'pilmode': 'LA'}
         img = iio.imread(fname, **read_kwargs)
-        data = np.squeeze(img == 0).astype(np.uint8)
+        data, mask = preprocess_image(img)
         height, width = data.shape
-        return Sprite(width, height, data)
+        return Sprite(width, height, data, mask)
 
 
 class AnimatedSprite(Sprite):
     SUPPORTED_MODES = ['repeat', 'stop']
 
-    def __init__(self, width: int = 0, height: int = 0, frames: int = 0,
-                 frame_data: Optional[np.array] = None, 
+    def __init__(self, width: int = 0, height: int = 0, frames: int = 1,
+                 frame_data: Optional[np.array] = None,
+                 frame_mask: Optional[np.array] = None,
                  mode: str = 'repeat', fps: int = 5) -> None:
         self.width = width
         self.height = height
         self.frames = frames
         self.frame_data = frame_data if frame_data is not None \
+            else np.zeros((height, width, frames), dtype=np.uint8)
+        self.frame_mask = frame_mask if frame_mask is not None \
             else np.zeros((height, width, frames), dtype=np.uint8)
         
         self.fps = fps
@@ -144,6 +156,10 @@ class AnimatedSprite(Sprite):
     @property
     def data(self):
         return np.squeeze(self.frame_data[:, :, self.current_frame])
+
+    @property
+    def mask(self):
+        return np.squeeze(self.frame_mask[:, :, self.current_frame])
 
     def update(self, delta: float):
         """
@@ -175,8 +191,13 @@ class AnimatedSprite(Sprite):
     def from_gif(cls, fname: str, **kwargs: Dict) -> AnimatedSprite:
         read_kwargs = {'pilmode': 'LA'}
         im = iio.get_reader(fname, **read_kwargs)
-        frames = [preprocess_image(im.get_data(i)) for i in range(len(im))]
+        frames, masks = [], []
+        for i in range(len(im)):
+            frame_data, frame_mask = preprocess_image(im.get_data(i))
+            frames.append(frame_data)
+            masks.append(frame_mask)
         data = np.dstack(frames)
+        mask = np.dstack(masks)
         height, width, n_frames = data.shape
         logger.info(f'Read GIF - {n_frames} frames of size {width}x{height}')
-        return AnimatedSprite(width, height, n_frames, data, **kwargs)
+        return AnimatedSprite(width, height, n_frames, data, mask, **kwargs)

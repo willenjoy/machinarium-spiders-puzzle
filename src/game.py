@@ -128,6 +128,7 @@ class Game:
         typ = (obj1.kind, obj2.kind)
 
         # Spawn an explosion at the center of the first object
+        # TODO: does not look so good when spiders are hit
         explosion = self.explosion_factory.create(Vec2(obj1.xc, obj1.yc))
         self.object_manager.add_object(explosion)
 

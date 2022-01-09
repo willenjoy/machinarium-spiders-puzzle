@@ -15,6 +15,7 @@ from .objects import Bullet, Enemy, ExplosionFactory, Player, \
                      ObjectManager, BulletFactory, Block, Explosion
 from .physics import CollisionManager
 from .sounds import SoundManager
+from .textures import TextureManager
 
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,9 @@ class Game:
 
         # Set up sounds
         SoundManager.init(config['sounds'])
+
+        # Load textures
+        TextureManager.init(config['textures'])
 
         # Set up canvas
         canvas_config = config['canvas']

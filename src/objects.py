@@ -9,6 +9,7 @@ from typing import Dict, Optional
 from .common import Vec2, dist2
 from .events import AnimationEndedEvent, Event
 from .graphics import Canvas, Sprite, AnimatedSprite
+from .textures import TextureManager
 
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class Object():
     def __init__(self, x, y) -> None:
         self.xc = x
         self.yc = y
-        self.sprite = Sprite()
+        self.sprite = Sprite(texture=TextureManager.blank())
         self.hitbox = Hitbox(0, 0)
 
     @property
@@ -63,11 +64,12 @@ class Object():
 class Bullet(Object):
     kind = 'Bullet'
 
-    def __init__(self, x: int, y: int, speed: int, size: int) -> None:
+    def __init__(self, x: int, y: int, speed: int, size: int, sprite: str) -> None:
         super().__init__(x, y)
         self.speed = speed
 
-        self.sprite = Sprite.from_circle(size)
+        texture = TextureManager.get(sprite)
+        self.sprite = Sprite(texture)
         self.hitbox = Hitbox.from_circle(size)
 
     def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
@@ -90,7 +92,8 @@ class Player(Object):
     def __init__(self, config: Dict) -> None:
         x, y = config['start_pos']
         super().__init__(x, y)
-        self.sprite = Sprite.from_png(config['sprite'])
+        texture = TextureManager.get(config['sprite'])
+        self.sprite = Sprite(texture)
 
     # TODO: player should not be able to go out of bounds
     def process_input(self, key: int) -> None:
@@ -112,7 +115,8 @@ class Block(Object):
     def __init__(self, config: Dict) -> None:
         x, y = config['start_pos']
         super().__init__(x, y)
-        self.sprite = Sprite.from_png(config['sprite'])
+        texture = TextureManager.get(config['sprite'])
+        self.sprite = Sprite(texture)
         self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
 
     def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
@@ -125,8 +129,9 @@ class Enemy(Object):
     def __init__(self, config: Dict) -> None:
         x, y = config.pop('start_pos')
         super().__init__(x, y)
-        fname = config.pop('sprite')
-        self.sprite = AnimatedSprite.from_gif(fname, **config)
+        name = config.pop('sprite')
+        texture = TextureManager.get(name)
+        self.sprite = AnimatedSprite(texture=texture, **config)
         self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
 
     def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
@@ -151,8 +156,9 @@ class Explosion(Object):
     def __init__(self, x: int = 0, y: int = 0, **kwargs) -> Optional[Event]:
         super().__init__(x, y)
 
-        fname = kwargs.pop('sprite')
-        self.sprite = AnimatedSprite.from_gif(fname, **kwargs)
+        name = kwargs.pop('sprite')
+        texture = TextureManager.get(name)
+        self.sprite = AnimatedSprite(texture=texture, **kwargs)
 
     def update(self, canvas: Canvas, delta: float):
         e = self.sprite.update(delta)

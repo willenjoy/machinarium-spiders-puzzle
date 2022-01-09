@@ -11,35 +11,36 @@
     "objects": {
         "player": {
             "start_pos": [20, 40],
-            "sprite": "assets/images/key.png"
+            "sprite": "key"
         },
         "bullet": {
             "speed": 100,
+            "sprite": "bullet",
             "size": 5
         },
         "explosion": {
-            "fps": 7, 
-            "sprite": "assets/images/explosion.gif",
+            "fps": 14, 
+            "sprite": "explosion",
             "mode": "stop"
         },
         "block": [
             {
                 "start_pos": [120, 20],
-                "sprite": "assets/images/block.png"
+                "sprite": "block"
             },
             {
                 "start_pos": [130, 20],
-                "sprite": "assets/images/block.png"
+                "sprite": "block"
             },
             {
                 "start_pos": [125, 29],
-                "sprite": "assets/images/block.png"
+                "sprite": "block"
             }
         ],
         "enemy": [
             {
                 "start_pos": [100, 40],
-                "sprite": "assets/images/spider.gif",
+                "sprite": "spider",
                 "fps": 6, 
                 "mode": "repeat"
             }
@@ -50,5 +51,27 @@
         "block_hit": "assets/sounds/block_hit.wav",
         "player_hit": "assets/sounds/player_hit.wav",
         "spider_hit": "assets/sounds/spider_hit.wav"
+    },
+    "textures": {
+        "key": {
+            "type": "png",
+            "filename": "assets/images/key.png"
+        },
+        "block": {
+            "type": "png",
+            "filename": "assets/images/block.png"
+        },
+        "spider": {
+            "type": "gif",
+            "filename": "assets/images/spider.gif"
+        },
+        "explosion": {
+            "type": "gif",
+            "filename": "assets/images/explosion.gif"
+        },
+        "bullet": {
+            "type": "circle",
+            "size": 5
+        }
     }
 }

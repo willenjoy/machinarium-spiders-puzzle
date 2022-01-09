@@ -5,3 +5,6 @@ __pycache__/
 
 # Application log files
 log.*
+
+# Directory for local files
+local/

@@ -89,18 +89,22 @@ class BulletFactory:
 class Player(Object):
     kind = 'Player'
 
-    def __init__(self, config: Dict) -> None:
+    def __init__(self, **config) -> None:
         x, y = config['start_pos']
         super().__init__(x, y)
         texture = TextureManager.get(config['sprite'])
         self.sprite = Sprite(texture)
+        self.ymax = config['ymax'] - self.sprite.height // 2
+        self.ymin = self.sprite.height // 2
 
-    # TODO: player should not be able to go out of bounds
     def process_input(self, key: int) -> None:
-        if key == ord('w'):
+        if key == ord('w') and self.in_bounds(self.yc - 1):
             self.yc -= 1
-        elif key == ord('s'):
+        elif key == ord('s') and self.in_bounds(self.yc + 1):
             self.yc += 1
+
+    def in_bounds(self, yc):
+        return self.ymin <= yc < self.ymax
 
     def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
         self.draw(canvas)

@@ -66,7 +66,8 @@ class Game:
         self.object_manager = ObjectManager()
         self.bullet_factory = BulletFactory(object_config['bullet'])
         self.explosion_factory = ExplosionFactory(object_config['explosion'])
-        self.object_manager.add_object(Player(object_config['player']))
+        self.object_manager.add_object(Player(**object_config['player'], 
+                                              ymax=self.canvas.height))
         for block in object_config['block']:
             self.object_manager.add_object(Block(block))
         for enemy in object_config['enemy']:

@@ -48,7 +48,14 @@ def collide(obj, other):
     add_to_container(obj)
     add_to_container(other)
 
-    return np.any(container > 1)
+    if not np.any(container > 1):
+        return False, 0
+
+    grid = np.indices((width, height))
+    r = np.mean(grid[0][container > 1])
+    c = np.mean(grid[1][container > 1])
+
+    return True, Vec2(top + r, left + c)
 
 
 class CollisionManager:
@@ -66,8 +73,9 @@ class CollisionManager:
     def check(self, obj):
         for kind_other in self.collide[obj.kind]:
             for other in self.object_manager.objects[kind_other]:
-                if collide(obj, other):
-                    yield CollisionEvent(collider=obj, collided=other)
+                collided, pos = collide(obj, other)
+                if collided:
+                    yield CollisionEvent(collider=obj, collided=other, pos=pos)
                 
 
     def update(self):

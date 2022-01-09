@@ -22,8 +22,5 @@ class SoundManager:
 
     @classmethod
     def play(cls, name):
-        logger.info(f'Playing sound {cls.sounds[name]}')
+        logger.info(f'Playing sound {name}')
         ch = cls.sounds[name].play()
-        # TODO: is it ok to leave channel open? otherwise blocks some animations
-        # while ch.get_busy():
-        #     pygame.time.delay(100)

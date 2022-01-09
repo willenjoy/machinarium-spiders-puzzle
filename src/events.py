@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from .common import Vec2
+
+
 @dataclass
 class Event:
     pass
@@ -22,6 +25,7 @@ class PlayerShootEvent(Event):
 class CollisionEvent:
     collider: 'Object'
     collided: 'Object'
+    pos: Vec2
 
 
 class CollisionTypes(Enum):

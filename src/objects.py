@@ -9,7 +9,7 @@ from typing import Dict, Optional, List
 from .common import Vec2, dist2
 from .events import AnimationEndedEvent, Event, PlayerShootEvent
 from .graphics import Canvas, Sprite, AnimatedSprite
-from .textures import TextureManager
+from .textures import TextureManager, Texture
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,14 @@ class Hitbox:
     @classmethod
     def from_rectangle(cls, width: int, height: int) -> Hitbox:
         return Hitbox(width, height, np.ones((width, height), dtype=np.uint8))
+
+    @classmethod
+    def from_texture(cls, texture: Texture) -> Hitbox:
+        hitbox_mask = texture.mask > 0
+        if texture.mask.ndim > 2:
+            hitbox_mask = texture.mask.sum(axis = 2) > 0
+        logger.info(f'Hitbox mask shape: {hitbox_mask.shape}')
+        return Hitbox(texture.height, texture.width, hitbox_mask)
 
 
 class Object():
@@ -140,7 +148,7 @@ class Enemy(Object):
         name = config.pop('sprite')
         texture = TextureManager.get(name)
         self.sprite = AnimatedSprite(texture=texture, **config)
-        self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
+        self.hitbox = Hitbox.from_texture(texture)
 
     def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
         e = self.sprite.update(delta)

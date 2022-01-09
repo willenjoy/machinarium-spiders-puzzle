@@ -14,6 +14,11 @@ class AnimationEndedEvent(Event):
     
     
 @dataclass
+class PlayerShootEvent(Event):
+    sender: 'Player'
+
+
+@dataclass
 class CollisionEvent:
     collider: 'Object'
     collided: 'Object'

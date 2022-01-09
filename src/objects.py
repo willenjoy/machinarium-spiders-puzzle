@@ -4,10 +4,10 @@ import logging
 import numpy as np
 
 from collections import defaultdict
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from .common import Vec2, dist2
-from .events import AnimationEndedEvent, Event
+from .events import AnimationEndedEvent, Event, PlayerShootEvent
 from .graphics import Canvas, Sprite, AnimatedSprite
 from .textures import TextureManager
 
@@ -97,11 +97,15 @@ class Player(Object):
         self.ymax = config['ymax'] - self.sprite.height // 2
         self.ymin = self.sprite.height // 2
 
-    def process_input(self, key: int) -> None:
+    def process_input(self, key: int) -> List[Event]:
+        events = []
         if key == ord('w') and self.in_bounds(self.yc - 1):
             self.yc -= 1
         elif key == ord('s') and self.in_bounds(self.yc + 1):
             self.yc += 1
+        elif key == ord(' '):
+            events.append(PlayerShootEvent(sender=self))
+        return events
 
     def in_bounds(self, yc):
         return self.ymin <= yc < self.ymax
@@ -177,11 +181,6 @@ class ObjectManager:
         self.objects = defaultdict(list)
         self.remove_queue = []
 
-    @property
-    def player(self):
-        assert self.objects[Player.kind], "Player was not added"
-        return self.objects[Player.kind][0]
-
     def traverse(self):
         for objects in self.objects.values():
             for object in objects:
@@ -199,10 +198,12 @@ class ObjectManager:
         self.objects[kind].remove(object)
         logger.info(f'Removing object from the game: {kind} - {object}')
 
-    def process_input(self, key: int):
+    def process_input(self, key: int) -> List[Event]:
+        events = []
         for object in self.traverse():
             if hasattr(object, 'process_input'):
-                object.process_input(key)
+                events.extend(object.process_input(key))
+        return events
 
     def update(self, canvas: Canvas, delta: float):
         events = []

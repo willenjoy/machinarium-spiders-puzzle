@@ -5,11 +5,11 @@ import logging
 import time
 
 from numpy import exp
-from typing import List
+from typing import List, Optional
 
 from .braillify import H_STEP, V_STEP
 from .common import Vec2
-from .events import AnimationEndedEvent, CollisionEvent, Event, CollisionTypes
+from .events import AnimationEndedEvent, CollisionEvent, Event, CollisionTypes, PlayerShootEvent
 from .graphics import Canvas
 from .objects import Bullet, Enemy, ExplosionFactory, Player, \
                      ObjectManager, BulletFactory, Block, Explosion
@@ -81,33 +81,29 @@ class Game:
 
         self.is_running = True
 
-    def process_input(self, key: int) -> None:
-        self.object_manager.process_input(key)
+    def process_input(self, key: int) -> List[Event]:
+        events = self.object_manager.process_input(key)
         if key == ord('q'):
             self.is_running = False
-        elif key == ord(' '):
-            # TODO: refactor it as player's method (how to pass sound manager?)
-            bullet = self.bullet_factory.create(self.object_manager.player.bullet_spawn_pos())
-            self.object_manager.add_object(bullet)
-            SoundManager.play('shoot')
+        return events
 
     def run(self):
         self.clock.start()
         while self.is_running:
             delta = self.clock.getElapsed()
-            self.update(delta)
-            self.process_input(self.window.getch())
+            input_events = self.process_input(self.window.getch())
+            self.update(delta, input_events)
             
             if self.debug:
                 debug_str = 'FPS: {:.2f}'.format(1 / delta)
                 self.window.addstr(0, 0, debug_str)
                 self.window.refresh()
 
-    def update(self, delta: float) -> None:
+    def update(self, delta: float, input_events: List[Event]) -> None:
         self.canvas.clear()
         events = self.object_manager.update(self.canvas, delta)
         collisions = list(self.collision_manager.update())
-        self.resolve(events + collisions)
+        self.resolve(input_events + events + collisions)
         self.canvas.update()
 
     def resolve(self, events: List[Event]):
@@ -117,6 +113,8 @@ class Game:
                 self.resolve_collision(e)
             elif isinstance(e, AnimationEndedEvent):
                 self.resolve_animation_end(e)
+            elif isinstance(e, PlayerShootEvent):
+                self.resolve_player_shoot(e)
             else:
                 assert False, "Unsupported event type in resolve"
     
@@ -148,3 +146,8 @@ class Game:
             SoundManager.play('spider_hit')
         else:
             assert False, f"bad collision type: {typ}"
+
+    def resolve_player_shoot(self, e):
+        bullet = self.bullet_factory.create(e.sender.bullet_spawn_pos())
+        self.object_manager.add_object(bullet)
+        SoundManager.play('shoot')

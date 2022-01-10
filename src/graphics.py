@@ -111,8 +111,8 @@ class Sprite:
     def draw(self, canvas: Canvas, x: int, y: int):
         w_visible = min(self.width, canvas.width - x)
         h_visible = min(self.height, canvas.height - y)
-        logger.info(f'{canvas.frame}')
-        logger.info(f'x={x}, y={y}, w={w_visible}, h={h_visible}')
+        # logger.info(f'{canvas.frame}')
+        # logger.info(f'x={x}, y={y}, w={w_visible}, h={h_visible}')
         if w_visible > 0 and h_visible > 0:
             np.putmask(canvas.frame[y:y+h_visible, x:x+w_visible],
                        self.mask[:h_visible, :w_visible],

@@ -36,18 +36,42 @@ class Clock:
     def start(self) -> None:
         self.time = time.time()
 
-    def getElapsed(self) -> float:
+    def get_elapsed(self) -> float:
         now = time.time()
         elapsed = now - self.time
         self.time = now
         return elapsed
 
 
+class Profiler:
+    PROFILE_CAPTION = ['clear_canvas', 'update_objects', 'check_collisions', 
+                       'resolve_events', 'update_camera', 'update_canvas']
+
+    def __init__(self) -> None:
+        self.clock = Clock()
+        self.profile_times = []
+
+    def start(self):
+        self.clock.start()
+
+    def tick(self):
+        self.profile_times.append(self.clock.get_elapsed())
+
+    def dump(self):
+        result = ', '.join([f'{c}={dt:.5f}s' 
+                            for c, dt in zip(self.PROFILE_CAPTION, self.profile_times)])
+        self.profile_times = []
+        return result
+    
+
 class Game:
     def __init__(self, window, config) -> None:       
         self.window = window
         self.clock = Clock()
         self.debug = config['debug']
+
+        if self.debug:
+            self.profiler = Profiler()
 
         # Set up sounds
         SoundManager.init(config['sounds'])
@@ -97,8 +121,10 @@ class Game:
 
     def run(self):
         self.clock.start()
+        if self.debug:
+            self.profiler.start()
         while self.is_running:
-            delta = self.clock.getElapsed()
+            delta = self.clock.get_elapsed(reset=True)
             input_events = self.process_input(self.window.getch())
             self.update(delta, input_events)
             
@@ -109,11 +135,35 @@ class Game:
 
     def update(self, delta: float, input_events: List[Event]) -> None:
         self.canvas.clear()
+        
+        if self.debug:
+            self.profiler.tick()
+        
         events = self.object_manager.update(self.canvas, delta)
+        
+        if self.debug:
+            self.profiler.tick()
+
         collisions = list(self.collision_manager.update())
+        
+        if self.debug:
+            self.profiler.tick()
+
         self.resolve(input_events + events + collisions)
+        
+        if self.debug:
+            self.profiler.tick()
+
         self.camera.update(delta)
+
+        if self.debug:
+            self.profiler.tick()
+
         self.canvas.update(self.camera)
+
+        if self.debug:
+            self.profiler.tick()
+            logger.info(self.profiler.dump())
 
     def resolve(self, events: List[Event]):
         for e in events:

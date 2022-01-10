@@ -31,3 +31,6 @@ class CollisionEvent:
 class CollisionTypes(Enum):
     BULLET_BLOCK = ('Bullet', 'Block') 
     BULLET_ENEMY = ('Bullet', 'Enemy')
+    PLAYER_ENEMY = ('Player', 'Enemy')
+    PLAYER_BLOCK = ('Player', 'Block')
+    PLAYER_GOAL  = ('Player', 'Goal')

@@ -45,7 +45,10 @@ def main():
     logging.info(f'Starting the game with the following config:\n{config_str}')
 
     result = wrapper(launch_game, config)
-    print("Congrats, you won! :)" if result else "Game over :(")
+    if result is None:
+        print("Game was not finished")
+    else:
+        print("Congrats, you won! :)" if result else "Game over :(")
         
 
 if __name__ == "__main__":

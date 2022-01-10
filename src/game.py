@@ -117,11 +117,14 @@ class Game:
         # Set up collision physics
         self.collision_manager = CollisionManager(self.object_manager, [
             (Bullet.kind, Block.kind),
-            (Bullet.kind, Enemy.kind)
+            (Bullet.kind, Enemy.kind),
+            (Player.kind, Block.kind),
+            (Player.kind, Enemy.kind),
+            (Player.kind, Goal.kind)
         ])
 
         self.is_running = True
-        self.result = False
+        self.result = None
 
     def process_input(self, key: int) -> List[Event]:
         events = self.object_manager.process_input(key)
@@ -203,12 +206,32 @@ class Game:
         # Spawn an explosion at the center of the first object
         # TODO: does not look so good when spiders are hit
         explosion = self.explosion_factory.create(Vec2(obj1.xc, obj1.yc))
-        self.object_manager.add_object(explosion)
 
         if typ == CollisionTypes.BULLET_BLOCK.value:
             # when bullet hits block, remove bullet
             self.object_manager.remove_object(obj1)
+            self.object_manager.add_object(explosion)
             SoundManager.play('block_hit')
+        elif typ == CollisionTypes.BULLET_ENEMY.value:
+            # when bullet hits enemy, remove both enemy and bullet
+            self.object_manager.remove_object(obj1)
+            self.object_manager.remove_object(obj2)
+            self.object_manager.add_object(explosion)
+            SoundManager.play('player_hit')
+        elif typ == CollisionTypes.PLAYER_ENEMY.value or typ == CollisionTypes.PLAYER_BLOCK.value:
+            # when player hits block and enemy, remove player and end the game as a loss
+            self.object_manager.remove_object(obj1)
+            self.object_manager.add_object(explosion)
+            self.result = False
+            self.is_running = False
+            SoundManager.play('player_hit')
+        elif typ == CollisionTypes.PLAYER_GOAL.value:
+            # when player hits goal, remove player and end the game as a win
+            self.object_manager.remove_object(obj1)
+            self.result = True
+            self.is_running = False
+            # TODO: add winning sound
+            # TODO: add a short delay after game ends to finish the animations and sound
         elif typ == CollisionTypes.BULLET_ENEMY.value:
             # when bullet hits enemy, remove both enemy and bullet
             self.object_manager.remove_object(obj1)

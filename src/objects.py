@@ -103,6 +103,7 @@ class Player(Object):
         texture = TextureManager.get(config['sprite'])
         self.speed = config['speed']
         self.sprite = Sprite(texture)
+        self.hitbox = Hitbox.from_texture(texture)
         self.ymax = config['ymax'] - self.sprite.height // 2
         self.ymin = self.sprite.height // 2
 

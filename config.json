@@ -2,6 +2,7 @@
     "canvas": {
         "size": [300, 0],
         "inverse": false,
+        "mode": "row-by-row",
         "colors": {
             "use_colors": true,
             "bg_color": [156, 173, 124],

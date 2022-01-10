@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import curses
 from dataclasses import dataclass
+from enum import Enum
 import imageio as iio
 import logging
 import numpy as np
@@ -36,6 +37,11 @@ class Camera:
         self.x += round(self.speed * delta)
 
 
+class CanvasMode(Enum):
+    ROW_BY_ROW = 'row-by-row'
+    ALL_AT_ONCE = 'all-at-once'
+
+
 # TODO: assign game objects to layers to control draw order
 class Canvas:
     def __init__(self, window, canvas_config: Dict) -> None:
@@ -50,6 +56,9 @@ class Canvas:
 
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
         self.inverse = canvas_config['inverse']
+        self.mode = canvas_config['mode']
+        if self.mode not in [CanvasMode.ROW_BY_ROW.value, CanvasMode.ALL_AT_ONCE.value]:
+            raise ValueError(f"Unsupported camera mode: {self.mode}")
 
         self.cp = None
         self._init_colors(canvas_config['colors'])
@@ -88,8 +97,12 @@ class Canvas:
 
     def update(self, camera: Camera) -> None:
         visible_area = self.frame[:, camera.x:camera.x+self.draw_width]
-        for i, row in enumerate(braillify(visible_area, self.inverse)):
-            self.window.addstr(i, 0, row, curses.color_pair(self.cp))
+        if self.mode == CanvasMode.ROW_BY_ROW.value:
+            for i, row in enumerate(braillify(visible_area, self.inverse)):
+                self.window.addstr(i, 0, row, curses.color_pair(self.cp))
+        elif self.mode == CanvasMode.ALL_AT_ONCE.value:
+            self.window.addstr(0, 0, '\n'.join(braillify(visible_area, self.inverse)), 
+                            curses.color_pair(self.cp))
         self.window.refresh()
 
 

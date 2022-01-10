@@ -26,7 +26,7 @@ def merge_args_into_config(config: Dict, args: argparse.Namespace):
 
 def launch_game(stdscr, config):
     game = Game(stdscr, config)
-    game.run()
+    return game.run()
 
 
 def main():
@@ -44,7 +44,8 @@ def main():
     config_str = json.dumps(config, indent=4)
     logging.info(f'Starting the game with the following config:\n{config_str}')
 
-    wrapper(launch_game, config)
+    result = wrapper(launch_game, config)
+    print("Congrats, you won! :)" if result else "Game over :(")
         
 
 if __name__ == "__main__":

@@ -124,7 +124,7 @@ class Game:
         if self.debug:
             self.profiler.start()
         while self.is_running:
-            delta = self.clock.get_elapsed(reset=True)
+            delta = self.clock.get_elapsed()
             input_events = self.process_input(self.window.getch())
             self.update(delta, input_events)
             

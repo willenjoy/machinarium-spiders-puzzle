@@ -39,6 +39,9 @@ class TextureManager:
             if typ == "circle":
                 size = params["size"]
                 texture = TextureManager.from_circle(size)
+            if typ == "rectangle":
+                width, height = params["width"], params["height"]
+                texture = TextureManager.from_rectangle(width, height)
             elif typ == "png":
                 fname = params["filename"]
                 texture = TextureManager.from_png(fname)
@@ -76,6 +79,12 @@ class TextureManager:
                     data[row, col] = 1
                     mask[row, col] = 1
         return Texture(width=diameter, height=diameter, frames=1, data=data, mask=mask)
+
+    @staticmethod
+    def from_rectangle(width: int, height: int) -> Texture:
+        data = np.ones((height, width), dtype=np.uint8)
+        mask = np.ones((height, width), dtype=np.uint8)
+        return Texture(width=width, height=height, frames=1, data=data, mask=mask)
 
     @staticmethod
     def blank() -> 'Texture':

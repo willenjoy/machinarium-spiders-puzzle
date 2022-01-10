@@ -49,7 +49,11 @@
                 "fps": 6, 
                 "mode": "repeat"
             }
-        ]
+        ],
+        "goal": {
+            "start_pos": [150, 0],
+            "sprite": "goal"
+        }
     },
     "sounds": {
         "shoot": "assets/sounds/shoot.wav",
@@ -77,6 +81,11 @@
         "bullet": {
             "type": "circle",
             "size": 5
+        },
+        "goal": {
+            "type": "rectangle",
+            "width": 20,
+            "height": "auto"
         }
     }
 }

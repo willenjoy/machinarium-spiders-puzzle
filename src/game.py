@@ -11,7 +11,7 @@ from .braillify import H_STEP, V_STEP
 from .common import Vec2
 from .events import AnimationEndedEvent, CollisionEvent, Event, CollisionTypes, PlayerShootEvent
 from .graphics import Canvas, Camera
-from .objects import Bullet, Enemy, ExplosionFactory, Player, \
+from .objects import Bullet, Enemy, ExplosionFactory, Player, Goal, \
                      ObjectManager, BulletFactory, Block, Explosion
 from .physics import CollisionManager
 from .sounds import SoundManager
@@ -76,15 +76,22 @@ class Game:
         # Set up sounds
         SoundManager.init(config['sounds'])
 
-        # Load textures
-        TextureManager.init(config['textures'])
-
         # Set up canvas
         canvas_config = config['canvas']
         size = list(terminal_size(window))
         canvas_config['size'][1] = size[1]
         canvas_config['window_size'] = size
         self.canvas = Canvas(window, canvas_config)
+
+        # Set full height for goal texture
+        texture_config = config['textures']
+        assert 'goal' in texture_config
+        texture_config['goal']['height'] = size[1]
+
+        logger.info(texture_config)
+
+        # Load textures
+        TextureManager.init(texture_config)
 
         # Set up camera
         camera_mode = config['camera']['mode']
@@ -95,11 +102,13 @@ class Game:
         
         # Set up in-game objects
         object_config = config['objects']
+        object_config['goal']['start_pos'][1] = size[1] // 2
         self.object_manager = ObjectManager()
         self.bullet_factory = BulletFactory(object_config['bullet'])
         self.explosion_factory = ExplosionFactory(object_config['explosion'])
         self.object_manager.add_object(Player(**object_config['player'], 
                                               ymax=self.canvas.height))
+        self.object_manager.add_object(Goal(object_config['goal']))
         for block in object_config['block']:
             self.object_manager.add_object(Block(block))
         for enemy in object_config['enemy']:
@@ -112,6 +121,7 @@ class Game:
         ])
 
         self.is_running = True
+        self.result = False
 
     def process_input(self, key: int) -> List[Event]:
         events = self.object_manager.process_input(key)
@@ -132,6 +142,7 @@ class Game:
                 debug_str = 'FPS: {:.2f}'.format(1 / delta)
                 self.window.addstr(0, 0, debug_str)
                 self.window.refresh()
+        return self.result
 
     def update(self, delta: float, input_events: List[Event]) -> None:
         self.canvas.clear()

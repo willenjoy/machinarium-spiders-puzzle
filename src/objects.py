@@ -186,6 +186,20 @@ class Explosion(Object):
         self.draw(canvas)
 
 
+class Goal(Object):
+    kind = 'Goal'
+
+    def __init__(self, config: Dict) -> None:
+        x, y = config['start_pos']
+        super().__init__(x, y)
+        texture = TextureManager.get(config['sprite'])
+        self.sprite = Sprite(texture)
+        self.hitbox = Hitbox.from_rectangle(self.sprite.width, self.sprite.height)
+
+    def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
+        self.draw(canvas)
+
+
 class ObjectManager:
     def __init__(self) -> None:
         self.objects = defaultdict(list)

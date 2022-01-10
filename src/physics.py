@@ -52,10 +52,12 @@ def collide(obj, other):
         return False, 0
 
     grid = np.indices((width, height))
-    r = np.mean(grid[0][container > 1])
-    c = np.mean(grid[1][container > 1])
+    logger.info(f'Row overlap: {grid[0][container > 1]}')
+    logger.info(f'Column overlap: {grid[1][container > 1]}')
+    r = round(np.mean(grid[0][container > 1]))
+    c = round(np.mean(grid[1][container > 1]))
 
-    return True, Vec2(top + r, left + c)
+    return True, Vec2(left + c, top + r)
 
 
 class CollisionManager:

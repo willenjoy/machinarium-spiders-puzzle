@@ -203,9 +203,9 @@ class Game:
         obj1, obj2 = c.collider, c.collided
         typ = (obj1.kind, obj2.kind)
 
-        # Spawn an explosion at the center of the first object
-        # TODO: does not look so good when spiders are hit
-        explosion = self.explosion_factory.create(Vec2(obj1.xc, obj1.yc))
+        # Spawn an explosion at the center of the collision overlap
+        # TODO: spawns a little higher then one would expect
+        explosion = self.explosion_factory.create(c.pos)
 
         if typ == CollisionTypes.BULLET_BLOCK.value:
             # when bullet hits block, remove bullet

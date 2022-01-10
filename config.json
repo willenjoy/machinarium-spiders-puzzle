@@ -1,6 +1,6 @@
 {
     "canvas": {
-        "size": "auto",
+        "size": [300, 0],
         "inverse": false,
         "colors": {
             "use_colors": true,
@@ -8,9 +8,13 @@
             "fg_color": [22, 22, 22]
         }
     },
+    "camera": {
+        "mode": "follow"
+    },
     "objects": {
         "player": {
             "start_pos": [20, 40],
+            "speed": 20,
             "sprite": "key"
         },
         "bullet": {

@@ -5,12 +5,12 @@ import logging
 import time
 
 from numpy import exp
-from typing import List, Optional
+from typing import List
 
 from .braillify import H_STEP, V_STEP
 from .common import Vec2
 from .events import AnimationEndedEvent, CollisionEvent, Event, CollisionTypes, PlayerShootEvent
-from .graphics import Canvas
+from .graphics import Canvas, Camera
 from .objects import Bullet, Enemy, ExplosionFactory, Player, \
                      ObjectManager, BulletFactory, Block, Explosion
 from .physics import CollisionManager
@@ -57,9 +57,17 @@ class Game:
 
         # Set up canvas
         canvas_config = config['canvas']
-        if canvas_config['size'] == 'auto':
-            canvas_config['size'] = list(terminal_size(window))
+        size = list(terminal_size(window))
+        canvas_config['size'][1] = size[1]
+        canvas_config['window_size'] = size
         self.canvas = Canvas(window, canvas_config)
+
+        # Set up camera
+        camera_mode = config['camera']['mode']
+        if camera_mode != 'follow':
+            raise ValueError("Unsupported camera mode")
+        camera_speed = config['objects']['player']['speed']
+        self.camera = Camera(x=0, mode=camera_mode, speed=camera_speed)
         
         # Set up in-game objects
         object_config = config['objects']
@@ -104,7 +112,8 @@ class Game:
         events = self.object_manager.update(self.canvas, delta)
         collisions = list(self.collision_manager.update())
         self.resolve(input_events + events + collisions)
-        self.canvas.update()
+        self.camera.update(delta)
+        self.canvas.update(self.camera)
 
     def resolve(self, events: List[Event]):
         for e in events:
@@ -116,7 +125,7 @@ class Game:
             elif isinstance(e, PlayerShootEvent):
                 self.resolve_player_shoot(e)
             else:
-                assert False, "Unsupported event type in resolve"
+                raise TypeError("Unsupported event type in resolve")
     
     def resolve_animation_end(self, e: AnimationEndedEvent):
         obj = e.sender
@@ -124,7 +133,7 @@ class Game:
         if isinstance(obj, Explosion):
             self.object_manager.remove_object(obj)
         else:
-            assert False, "Unexpected object type in resolve_animation_end"
+            raise TypeError("Unexpected object type in resolve_animation_end")
 
     def resolve_collision(self, c: CollisionEvent):
         obj1, obj2 = c.collider, c.collided
@@ -145,7 +154,7 @@ class Game:
             self.object_manager.remove_object(obj2)
             SoundManager.play('spider_hit')
         else:
-            assert False, f"bad collision type: {typ}"
+            raise ValueError(f"bad collision type: {typ}")
 
     def resolve_player_shoot(self, e):
         bullet = self.bullet_factory.create(e.sender.bullet_spawn_pos())

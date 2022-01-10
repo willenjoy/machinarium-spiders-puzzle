@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import curses
+from dataclasses import dataclass
 import imageio as iio
 import logging
 import numpy as np
@@ -25,16 +26,27 @@ def rgb2curses(r, g, b):
     return scale2curses(r), scale2curses(g), scale2curses(b)
 
 
-# TODO: consider using pads for camera movements
+@dataclass
+class Camera:
+    x: int
+    mode: str
+    speed: int
+
+    def update(self, delta: float):
+        self.x += round(self.speed * delta)
+
+
 # TODO: assign game objects to layers to control draw order
 class Canvas:
     def __init__(self, window, canvas_config: Dict) -> None:
         self.window = window
         width, height = canvas_config['size']
+        self.draw_width, self.draw_height = canvas_config['window_size']
         self.width = width
         self.height = height
 
-        logger.info(f'Creating terminal window, size={width}x{height}')
+        logger.info(f'Creating canvas, size={width}x{height}')
+        logger.info(f'Visible area in the terminal window, size={self.draw_width}x{self.draw_height}')
 
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
         self.inverse = canvas_config['inverse']
@@ -74,8 +86,9 @@ class Canvas:
         self.window.erase()
         self.frame = np.zeros((self.height, self.width), dtype=np.uint8)
 
-    def update(self) -> None:
-        for i, row in enumerate(braillify(self.frame, self.inverse)):
+    def update(self, camera: Camera) -> None:
+        visible_area = self.frame[:, camera.x:camera.x+self.draw_width]
+        for i, row in enumerate(braillify(visible_area, self.inverse)):
             self.window.addstr(i, 0, row, curses.color_pair(self.cp))
         self.window.refresh()
 

@@ -101,6 +101,7 @@ class Player(Object):
         x, y = config['start_pos']
         super().__init__(x, y)
         texture = TextureManager.get(config['sprite'])
+        self.speed = config['speed']
         self.sprite = Sprite(texture)
         self.ymax = config['ymax'] - self.sprite.height // 2
         self.ymin = self.sprite.height // 2
@@ -119,6 +120,7 @@ class Player(Object):
         return self.ymin <= yc < self.ymax
 
     def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
+        self.xc += round(self.speed * delta)
         self.draw(canvas)
 
     def bullet_spawn_pos(self) -> Vec2:

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import curses
 from dataclasses import dataclass
-from enum import Enum
-import imageio as iio
+from enum import Enum, auto
 import logging
 import numpy as np
 
@@ -187,3 +186,41 @@ class AnimatedSprite(Sprite):
         return True
 
 
+class LineType(Enum):
+    SOLID = auto()
+    DASHED = auto()
+
+
+@dataclass
+class Line:
+    xs: int
+    ys: int
+    xe: int
+    ye: int
+    width: int
+    data: np.array
+    type: LineType
+
+    def generate_data(self, length, width, type, dash_size):
+        if type == LineType.SOLID:
+            self.data = np.ones((length, width))
+        elif type == LineType.DASHED:
+            self.data = np.zeros((length, width))
+            xs = np.linspace(0, length, length // (2 * dash_size), dtype=np.uint8)
+            for x in xs:
+                logger.info(f'{x}, {dash_size}')
+                self.data[x:x+dash_size, :] = 1
+        else:
+            raise ValueError(f'Unsupported line type: {type}')
+
+    def draw(self, canvas: Canvas):
+        if self.xs == self.xe:
+            dx = (self.width + 1) // 2
+            length = self.ye - self.ys
+            canvas.frame[self.ys:self.ye, self.xs-dx:self.xs+dx-1] = self.data[:length, :]
+        elif self.ys == self.ye:
+            dy = (self.width + 1) // 2
+            length = self.xe - self.xs
+            canvas.frame[self.ys-dy:self.ys+dy-1, self.xs:self.xe] = self.data[:length, :].T
+        else:
+            raise ValueError('Only vertical or horizontal lines are supported')

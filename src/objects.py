@@ -8,7 +8,7 @@ from typing import Dict, Optional, List
 
 from .common import Vec2, dist2
 from .events import AnimationEndedEvent, Event, PlayerShootEvent
-from .graphics import Canvas, Sprite, AnimatedSprite
+from .graphics import Canvas, Line, LineType, Sprite, AnimatedSprite
 from .textures import TextureManager, Texture
 
 
@@ -144,14 +144,28 @@ class Block(Object):
 
 class Enemy(Object):
     kind = 'Enemy'
+    MAX_LENGTH = 200
 
     def __init__(self, config: Dict) -> None:
         x, y = config.pop('start_pos')
         super().__init__(x, y)
         name = config.pop('sprite')
         texture = TextureManager.get(name)
+        
+        self.hangs = config.pop('hangs')
+        self.line = None
+        if self.hangs:
+            self.line = Line(xs=self.xc, ys=0, xe=self.xc, ye=self.yc, 
+                             width=1, type=LineType.DASHED, data=np.array([]))
+            self.line.generate_data(self.MAX_LENGTH, 1, LineType.DASHED, 1)
+        
         self.sprite = AnimatedSprite(texture=texture, **config)
         self.hitbox = Hitbox.from_texture(texture)
+
+    def draw(self, canvas: Canvas):
+        super().draw(canvas)
+        if self.hangs:
+            self.line.draw(canvas)
 
     def update(self, canvas: Canvas, delta: float) -> Optional[Event]:
         e = self.sprite.update(delta)

@@ -44,10 +44,11 @@
         ],
         "enemy": [
             {
-                "start_pos": [100, 40],
+                "start_pos": [100, 60],
                 "sprite": "spider",
                 "fps": 6, 
-                "mode": "repeat"
+                "mode": "repeat",
+                "hangs": true
             }
         ],
         "goal": {
